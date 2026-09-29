@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mazbien — AI Training Needs Assessment & Solution Designer</title>
+  <meta name="description" content="Mazbien internal decision-support tool for AI training consultants. Move from discovery conversation to structured, role-specific training recommendations efficiently with 100% explainability.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ================= TOP APP HEADER ================= -->
+  <header class="mazbien-header">
+    <div class="header-inner">
+      
+      <!-- Brand & Title -->
+      <div class="brand-wrapper">
+        <div class="brand-logo-icon">⚡</div>
+        <div class="brand-meta">
+          <h1>
+            <span>Mazbien</span>
+            <span class="brand-badge-tag">ENTR 3360 Solution Designer</span>
+          </h1>
+          <div class="brand-subtitle">AI Training Needs Assessment &amp; Proposal Engineering</div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="header-nav">
+        <button id="nav-wizard-btn" class="nav-tab-btn active">
+          <span>🎯</span>
+          <span>Discovery Intake</span>
+        </button>
+        <button id="nav-review-btn" class="nav-tab-btn">
+          <span>📋</span>
+          <span>Consultant Review &amp; Edit</span>
+          <span id="draft-counter-badge" class="badge-pill">Draft</span>
+        </button>
+        <button id="nav-history-btn" class="nav-tab-btn">
+          <span>📚</span>
+          <span>Assessment History</span>
+        </button>
+        <button id="nav-consistency-btn" class="nav-tab-btn">
+          <span>🧪</span>
+          <span>Consistency Lab (SC #9)</span>
+        </button>
+      </nav>
+
+      <!-- Quick Preset & Consultant Profile -->
+      <div class="header-actions">
+        <div class="preset-dropdown-wrap">
+          <select id="preset-select" class="form-control" style="padding: 0.35rem 0.65rem; font-size: 0.775rem; background: rgba(255,255,255,0.1); color: #ffffff; border-color: rgba(255,255,255,0.2);">
+            <option value="" style="color: #000;">⚡ Quick Demo Presets...</option>
+            <option value="0" style="color: #000;">1. Tech Scaleup (65 Staff • Silver)</option>
+            <option value="1" style="color: #000;">2. Mid-Market Logistics (240 Staff • Gold)</option>
+            <option value="2" style="color: #000;">3. Enterprise Healthcare (1,200 Staff • Flagged Premium)</option>
+          </select>
+        </div>
+
+        <div class="consultant-pill">
+          <span class="consultant-avatar">ER</span>
+          <span>Elena Rostova (Lead Consultant)</span>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTENT ================= -->
+  <main class="app-main">
+
+    <!-- ========================================================
+         VIEW 1: DISCOVERY INTAKE WIZARD (WORKFLOW A)
+         ======================================================== -->
+    <section id="discovery-wizard-view">
+      
+      <!-- Stepper Progress Header -->
+      <div class="stepper-nav">
+        <div class="step-item active" data-step="1">
+          <div class="step-num">1</div>
+          <div class="step-text">
+            <span class="step-title">Organization Profile</span>
+            <span class="step-desc">Company, Industry &amp; Headcount</span>
+          </div>
+        </div>
+
+        <div class="step-item" data-step="2">
+          <div class="step-num">2</div>
+          <div class="step-text">
+            <span class="step-title">Departments &amp; Roles</span>
+            <span class="step-desc">Select up to 5 depts &amp; 10 roles</span>
+          </div>
+        </div>
+
+        <div class="step-item" data-step="3">
+          <div class="step-num">3</div>
+          <div class="step-text">
+            <span class="step-title">Tools &amp; AI Maturity</span>
+            <span class="step-desc">Current stack, pain points &amp; level</span>
+          </div>
+        </div>
+
+        <div class="step-item" data-step="4">
+          <div class="step-num">4</div>
+          <div class="step-text">
+            <span class="step-title">Adaptive Follow-Ups</span>
+            <span class="step-desc">Intelligent discovery gap detection</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 1: Organization Profile -->
+      <div class="wizard-step-pane" id="step-pane-1">
+        <div class="card">
+          <div class="card-header">
+            <h2><span>🏢</span> Step 1: Client Organization &amp; Contact Information</h2>
+            <span class="badge badge-draft">Discovery Phase</span>
+          </div>
+          <div class="card-body">
+            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.25rem;">
+              Capture foundational client profile gathered during the initial discovery call.
+            </p>
+
+            <div class="grid-2col">
+              <div class="form-group">
+                <label class="form-label">Client Company Name <span class="required">*</span></label>
+                <input type="text" id="intake-company" class="form-control" placeholder="e.g. Apex Supply Chain Logistics" required>
+                <div class="form-hint">Official corporate entity name</div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Primary Client Stakeholder / Title <span class="required">*</span></label>
+                <input type="text" id="intake-contact" class="form-control" placeholder="e.g. Marcus Vance, VP Operations" required>
+                <div class="form-hint">Consultant's key contact person and decision maker</div>
+              </div>
+            </div>
+
+            <div class="grid-2col">
+              <div class="form-group">
+                <label class="form-label">Industry &amp; Operating Sector <span class="required">*</span></label>
+                <select id="intake-industry" class="form-control" required>
+                  <option value="">Select Industry Sector...</option>
+                </select>
+                <div class="form-hint">Informs regulatory constraints and baseline tool familiarity</div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Organization Total Headcount <span class="required">*</span></label>
+                <select id="intake-org-size" class="form-control" required>
+                  <option value="">Select Headcount Tier...</option>
+                </select>
+                <div class="form-hint">Drives rule-based package tier mapping and add-on triggers</div>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Consultant Note: You can load a preset scenario from the top bar at any time.</span>
+            <button type="button" class="btn btn-primary" onclick="window.MazbienApp.goToStep(2)">
+              <span>Continue to Departments &amp; Roles →</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Departments & Roles Selection -->
+      <div class="wizard-step-pane hidden" id="step-pane-2">
+        <div class="card">
+          <div class="card-header">
+            <h2><span>👥</span> Step 2: Departments &amp; Specific Employee Roles</h2>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <span id="role-selection-counter" class="badge badge-draft">0 / 10 Roles Selected</span>
+              <span id="dept-selection-counter" class="badge badge-draft">0 / 5 Departments</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="background: var(--brand-primary-light); border: 1px solid #c7d2fe; border-radius: var(--radius-md); padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.825rem; color: #3730a3;">
+              <strong>ENTR 3360 MVP Rule:</strong> Mazbien delivers <em>role-specific</em> AI training pathways rather than generic blanket courses. Select up to 5 departments and up to 10 distinct employee roles. Enter estimated headcount per role.
+            </div>
+
+            <div id="dept-role-container" class="dept-role-grid">
+              <!-- Dynamically populated from data.js -->
+            </div>
+          </div>
+          <div class="card-footer">
+            <button type="button" class="btn btn-secondary" onclick="window.MazbienApp.goToStep(1)">
+              <span>← Back to Profile</span>
+            </button>
+            <button type="button" class="btn btn-primary" onclick="window.MazbienApp.goToStep(3)">
+              <span>Continue to Operational Context →</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Operational Context & AI Maturity -->
+      <div class="wizard-step-pane hidden" id="step-pane-3">
+        <div class="card">
+          <div class="card-header">
+            <h2><span>⚙️</span> Step 3: Current Tools, Pain Points &amp; AI Maturity</h2>
+            <span class="badge badge-draft">Discovery Stage 3</span>
+          </div>
+          <div class="card-body">
+            
+            <div class="form-group">
+              <label class="form-label">Client's Current AI Maturity Level <span class="required">*</span></label>
+              <div id="ai-level-options" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem;">
+                <!-- Dynamically generated radio buttons -->
+              </div>
+              <div class="form-hint">Calibrates change resistance scoring and post-training mentorship requirements</div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Current Software &amp; Workflow Tools in Use</label>
+              <div id="tools-chips-container" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <!-- Checkbox chips populated dynamically -->
+              </div>
+              <input type="text" id="intake-custom-tools" class="form-control" placeholder="Add other specialized tools (comma-separated, e.g. CAD, Tableau, Marketo)">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Primary Business Pain Points &amp; AI Objectives <span class="required">*</span></label>
+              <textarea id="intake-pain-points" class="form-control" rows="3" placeholder="e.g. Sales reps spend 12 hours/week writing custom outbound proposals; Support is overwhelmed with tier-1 repetitive questions; Engineering has no standardized code privacy guidelines..."></textarea>
+              <div class="form-hint">Specific friction points mentioned by client leadership during discovery</div>
+            </div>
+
+          </div>
+          <div class="card-footer">
+            <button type="button" class="btn btn-secondary" onclick="window.MazbienApp.goToStep(2)">
+              <span>← Back to Roles</span>
+            </button>
+            <button type="button" class="btn btn-primary" onclick="window.MazbienApp.goToStep(4)">
+              <span>Review Adaptive Follow-Ups →</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Adaptive Follow-Up Questions (Gaps in Intake) -->
+      <div class="wizard-step-pane hidden" id="step-pane-4">
+        <div class="card">
+          <div class="card-header">
+            <h2><span>🧠</span> Step 4: Adaptive Follow-Up Discovery Questions</h2>
+            <span class="badge badge-draft">Context Gap Analyzer</span>
+          </div>
+          <div class="card-body">
+            
+            <div style="background: #fdf4ff; border: 1px solid #f0abfc; border-radius: var(--radius-md); padding: 0.85rem 1.15rem; margin-bottom: 1.25rem; font-size: 0.825rem; color: #86198f;">
+              <strong>Intelligent Discovery Gap Detection:</strong> Based on the departments and AI experience level you entered, Mazbien's engine has surfaced the targeted questions below. Answer what the client already shared, or leave blank to revisit live during a follow-up.
+            </div>
+
+            <div id="adaptive-questions-container">
+              <!-- Dynamically populated based on intake gap conditions -->
+            </div>
+
+          </div>
+          <div class="card-footer">
+            <button type="button" class="btn btn-secondary" onclick="window.MazbienApp.goToStep(3)">
+              <span>← Back to Context</span>
+            </button>
+            <button type="button" class="btn btn-success" onclick="window.MazbienApp.generateAssessment()">
+              <span>🚀 Generate Assessment &amp; Draft Recommendation</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================
+         VIEW 2: CONSULTANT REVIEW & EDIT DASHBOARD (WORKFLOW B)
+         (The central screen retaining consultant judgment)
+         ======================================================== -->
+    <section id="consultant-review-view" class="hidden">
+      
+      <!-- Review Header Bar -->
+      <div class="review-dashboard-header">
+        <div class="client-meta-box">
+          <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+            <h2 id="review-client-name">Apex Supply Chain Logistics</h2>
+            <span id="review-status-badge" class="badge badge-draft">Draft — Pending Consultant Review</span>
+            <span id="review-tier-badge" class="badge badge-tier-gold">Gold Tier</span>
+          </div>
+          <div class="client-meta-sub">
+            <span id="review-meta-industry">Industry: Logistics &amp; Transport</span>
+            <span>•</span>
+            <span id="review-meta-headcount">Headcount: 220 Staff</span>
+            <span>•</span>
+            <span id="review-meta-roles-count">4 Assessed Roles across 3 Depts</span>
+            <span>•</span>
+            <span id="review-meta-date">Draft Generated: Today</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.6rem; align-items: center;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()">
+            <span>🖨️ Print / Export</span>
+          </button>
+          <button type="button" class="btn btn-success" onclick="window.MazbienApp.openSendForReviewModal()">
+            <span>📤 Send For Review</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Review Sub-Tabs -->
+      <div class="review-subtabs-nav">
+        <button class="subtab-btn active" data-subtab="proposal">
+          <span>📄</span>
+          <span>Client-Facing Proposal</span>
+        </button>
+        <button class="subtab-btn" data-subtab="delivery">
+          <span>🛠️</span>
+          <span>Internal Delivery Plan</span>
+        </button>
+        <button class="subtab-btn" data-subtab="readiness">
+          <span>📊</span>
+          <span>Readiness &amp; Gaps Deep-Dive</span>
+        </button>
+        <button class="subtab-btn" data-subtab="adjustments">
+          <span>✏️</span>
+          <span>Consultant Adjustments &amp; Overrides</span>
+        </button>
+      </div>
+
+      <!-- ================= SUBTAB 1: CLIENT-FACING PROPOSAL ================= -->
+      <div class="review-subpane" id="subpane-proposal">
+        
+        <!-- Package Tier Recommendation Banner -->
+        <div class="tier-display-card">
+          <div class="tier-ribbon">
+            <span id="tier-badge-pill" class="badge badge-tier-gold" style="font-size: 0.85rem; padding: 0.35rem 0.85rem;">Gold Tier Recommended</span>
+          </div>
+          <div style="max-width: 75%;">
+            <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--brand-primary);">
+              Recommended Service Package
+            </span>
+            <h3 id="tier-display-name" style="font-size: 1.5rem; font-weight: 800; margin: 0.25rem 0;">
+              Gold (Enterprise Transformation)
+            </h3>
+            <p id="tier-display-tagline" style="color: var(--text-muted); font-size: 0.9rem;">
+              Comprehensive cross-enterprise AI deployment with champions and governance
+            </p>
+            <div class="tier-pricing-row">
+              <span id="tier-display-price" class="tier-price-large">$54,000 - $78,000</span>
+              <span id="tier-display-duration" style="color: var(--text-muted); font-size: 0.85rem;">(8 - 10 Weeks • 56 - 72 Total Hours)</span>
+            </div>
+          </div>
+
+          <!-- Visible Rationale: Why This Tier -->
+          <div class="rationale-callout">
+            <div class="rationale-header">
+              <span>🔍</span>
+              <span>Visible Rationale: Why This Tier Was Recommended</span>
+            </div>
+            <ul id="tier-rationale-list" class="rationale-bullets">
+              <!-- Populated dynamically with explainability bullets -->
+            </ul>
+          </div>
+
+          <!-- Core Deliverables -->
+          <div style="margin-top: 1.25rem;">
+            <h4 style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.5rem;">
+              Included Package Deliverables:
+            </h4>
+            <ul id="tier-deliverables-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.5rem; list-style: none; font-size: 0.85rem;">
+              <!-- Populated dynamically -->
+            </ul>
+          </div>
+        </div>
+
+        <!-- Role-Specific Training Pathways Section (Core requirement: generated per role) -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div class="card-header">
+            <h2><span>🎓</span> Role-Specific Recommended Training Pathways</h2>
+            <span class="badge badge-draft">Customized per distinct role</span>
+          </div>
+          <div class="card-body">
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">
+              Unlike generic corporate courses, Mazbien designs bespoke training pathways tailored to each employee role's actual workflow and capability gap.
+            </p>
+
+            <div id="pathways-list-container">
+              <!-- Populated dynamically with role pathway cards & visible rationales -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Recommended Add-Ons Section (Core requirement: driven by size and specific needs) -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div class="card-header">
+            <h2><span>➕</span> Recommended Strategic Add-Ons</h2>
+            <span class="badge badge-draft">Driven by size &amp; specific needs</span>
+          </div>
+          <div class="card-body">
+            <div id="addons-recommendations-container">
+              <!-- Populated dynamically with add-on cards and 'Why this add-on' rationales -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Rollout Timeline & Phasing -->
+        <div class="card">
+          <div class="card-header">
+            <h2><span>📅</span> Proposed Phased Rollout Schedule</h2>
+          </div>
+          <div class="card-body">
+            <div class="grid-3col">
+              <div style="padding: 1rem; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--surface-subtle);">
+                <div style="font-weight: 800; font-size: 0.85rem; color: var(--brand-primary); margin-bottom: 0.25rem;">PHASE 1: WEEK 1 - 2</div>
+                <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.35rem;">Discovery Alignment &amp; Prompt Foundations</h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted);">Pre-training skills baseline assessment, corporate AI policy orientation, and role-agnostic foundational labs.</p>
+              </div>
+
+              <div style="padding: 1rem; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--surface-subtle);">
+                <div style="font-weight: 800; font-size: 0.85rem; color: var(--brand-primary); margin-bottom: 0.25rem;">PHASE 2: WEEK 3 - 6</div>
+                <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.35rem;">Role-Specific Workflow Labs</h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted);">Concurrent hands-on cohort tracks for each department using real anonymized company templates and data.</p>
+              </div>
+
+              <div style="padding: 1rem; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--surface-subtle);">
+                <div style="font-weight: 800; font-size: 0.85rem; color: var(--brand-primary); margin-bottom: 0.25rem;">PHASE 3: POST-TRAINING</div>
+                <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.35rem;">Adoption Office Hours &amp; ROI Review</h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted);">Post-training benchmark evaluation, bi-weekly drop-in problem clinics, and partner executive impact briefing.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= SUBTAB 2: INTERNAL DELIVERY PLAN ================= -->
+      <div class="review-subpane hidden" id="subpane-delivery">
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div class="card-header">
+            <h2><span>🛠️</span> Mazbien Internal Delivery &amp; Resourcing Plan</h2>
+            <span class="badge" style="background: #e0e7ff; color: #3730a3;">Internal Consultant Eyes Only</span>
+          </div>
+          <div class="card-body">
+            
+            <div class="grid-3col" style="margin-bottom: 1.5rem;">
+              <div style="padding: 1rem; border: 1px solid var(--border-light); border-radius: var(--radius-md);">
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Lead Consultant Days</span>
+                <div id="delivery-lead-days" style="font-size: 1.75rem; font-weight: 800; color: var(--brand-navy); margin-top: 0.25rem;">8.5 Days</div>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">Curriculum tailoring &amp; stakeholder management</span>
+              </div>
+
+              <div style="padding: 1rem; border: 1px solid var(--border-light); border-radius: var(--radius-md);">
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Trainer Workshop Hours</span>
+                <div id="delivery-trainer-hours" style="font-size: 1.75rem; font-weight: 800; color: var(--brand-navy); margin-top: 0.25rem;">42 Hours</div>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">Live lab facilitation across cohorts</span>
+              </div>
+
+              <div style="padding: 1rem; border: 1px solid var(--border-light); border-radius: var(--radius-md);">
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Change Friction Index</span>
+                <div id="delivery-friction-index" style="font-size: 1.75rem; font-weight: 800; color: var(--warning); margin-top: 0.25rem;">Medium (48%)</div>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">Requires active champion enablement</span>
+              </div>
+            </div>
+
+            <!-- Risk Matrix & Governance Warnings -->
+            <div style="margin-bottom: 1.5rem;">
+              <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem;">Operational &amp; Compliance Risk Matrix</h3>
+              <div id="delivery-risk-matrix" style="display: flex; flex-direction: column; gap: 0.6rem;">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <!-- Pre-Engagement Prerequisites -->
+            <div>
+              <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem;">Client Pre-Engagement Readiness Checklist</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.85rem;">
+                <li style="display: flex; align-items: center; gap: 0.5rem;">
+                  <input type="checkbox" checked disabled>
+                  <span>Provisioning of enterprise LLM licenses (ChatGPT Enterprise / Microsoft Copilot) prior to Week 2.</span>
+                </li>
+                <li style="display: flex; align-items: center; gap: 0.5rem;">
+                  <input type="checkbox" checked disabled>
+                  <span>Appointment of 1 dedicated Departmental Champion per assessed department.</span>
+                </li>
+                <li style="display: flex; align-items: center; gap: 0.5rem;">
+                  <input type="checkbox" checked disabled>
+                  <span>Sanitized, dummy datasets approved by client Legal for hands-on prompt lab simulations.</span>
+                </li>
+              </ul>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SUBTAB 3: READINESS & GAPS DEEP-DIVE ================= -->
+      <div class="review-subpane hidden" id="subpane-readiness">
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div class="card-header">
+            <h2><span>📊</span> AI-Readiness Scoring Across 4 Defined Axes</h2>
+            <span class="badge badge-draft">Per Role &amp; Department</span>
+          </div>
+          <div class="card-body">
+            
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">
+              Mazbien evaluates readiness across 4 explicit dimensions: <strong>Technical Literacy</strong>, <strong>Workflow Suitability</strong>, <strong>Data &amp; Security Awareness</strong>, and <strong>Change Mindset</strong>.
+            </p>
+
+            <div id="readiness-matrix-container">
+              <!-- Populated dynamically with role-by-role 4-axis visual meters and capability gap cards -->
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SUBTAB 4: CONSULTANT ADJUSTMENTS & OVERRIDES ================= -->
+      <div class="review-subpane hidden" id="subpane-adjustments">
+        <div class="card">
+          <div class="card-header">
+            <h2><span>✏️</span> Consultant Professional Judgment &amp; Manual Scoping Hub</h2>
+            <span class="badge" style="background: #fdf4ff; color: #86198f;">Retaining Human Judgment</span>
+          </div>
+          <div class="card-body">
+            
+            <div style="background: var(--surface-subtle); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.5rem; font-size: 0.85rem;">
+              <strong>Project Owner Hard Requirement:</strong> The system produces an explainable <em>draft recommendation</em>. As the lead consultant, you maintain total authority to override package tiers, flag manual Premium enterprise scoping, adjust module durations, and attach audit notes before sending for internal review.
+            </div>
+
+            <!-- Tier Override Control -->
+            <div class="form-group">
+              <label class="form-label">Package Tier Override &amp; Manual Scoping</label>
+              <div class="grid-2col">
+                <select id="adjust-tier-select" class="form-control">
+                  <option value="bronze">Bronze (Foundational Sprint)</option>
+                  <option value="silver">Silver (Operational Acceleration)</option>
+                  <option value="gold">Gold (Enterprise Transformation)</option>
+                  <option value="premium">Flagged Premium (Manual Enterprise Scoping)</option>
+                </select>
+
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span id="tier-override-flag-text" style="font-size: 0.825rem; font-weight: 600; color: var(--text-muted);">
+                    Status: System Recommended
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Consultant Justification Note -->
+            <div class="form-group">
+              <label class="form-label">Consultant Rationale &amp; Adjustment Justification Notes</label>
+              <textarea id="adjust-consultant-notes" class="form-control" rows="4" placeholder="Explain your professional reasoning for any tier override, scope alteration, or specific client context not captured by the automated rules..."></textarea>
+              <div class="form-hint">Stored permanently in the assessment history record to preserve institutional audit trails.</div>
+            </div>
+
+            <!-- Add-On Overrides -->
+            <div class="form-group">
+              <label class="form-label">Add-On Selection Overrides</label>
+              <div id="adjust-addons-toggles" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                <!-- Populated dynamically with toggle checkboxes -->
+              </div>
+            </div>
+
+          </div>
+          <div class="card-footer">
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Edits update the live recommendation immediately.</span>
+            <button type="button" class="btn btn-primary" onclick="window.MazbienApp.saveAdjustments()">
+              <span>💾 Save Adjustments</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sticky Review Action Toolbar -->
+      <div class="sticky-review-bar">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <span id="sticky-status-pill" class="badge badge-draft">Draft Mode</span>
+          <span style="font-size: 0.8rem; color: var(--text-muted);" id="sticky-save-status">All changes saved locally</span>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <button type="button" class="btn btn-secondary" onclick="window.MazbienApp.goToIntake()">
+            <span>← Re-edit Intake</span>
+          </button>
+          <button type="button" class="btn btn-success" onclick="window.MazbienApp.openSendForReviewModal()">
+            <span>📤 Send For Review</span>
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================
+         VIEW 3: ASSESSMENT HISTORY & BENCHMARKS
+         (Success Criteria: benchmark similar clients & consistency)
+         ======================================================== -->
+    <section id="history-benchmarks-view" class="hidden">
+      <div class="card">
+        <div class="card-header">
+          <h2><span>📚</span> Mazbien Assessment History &amp; Client Benchmarks</h2>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="history-search-input" class="form-control" placeholder="Search past clients or industries..." style="width: 260px; padding: 0.35rem 0.65rem; font-size: 0.8rem;">
+          </div>
+        </div>
+        <div class="card-body">
+          <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">
+            Review previously completed assessments to benchmark recommendations for similar company sizes and department mixes. Demonstrates Mazbien's institutional consistency over time.
+          </p>
+
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border-light); background: var(--surface-subtle); color: var(--text-muted);">
+                  <th style="padding: 0.75rem 1rem;">Client Organization</th>
+                  <th style="padding: 0.75rem 1rem;">Industry</th>
+                  <th style="padding: 0.75rem 1rem;">Headcount</th>
+                  <th style="padding: 0.75rem 1rem;">Assigned Tier</th>
+                  <th style="padding: 0.75rem 1rem;">Status</th>
+                  <th style="padding: 0.75rem 1rem;">Date</th>
+                  <th style="padding: 0.75rem 1rem; text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body">
+                <!-- Dynamically populated from data.js seeds and user sessions -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         VIEW 4: CONSISTENCY TEST LAB (SC #9 VALIDATOR)
+         (Success Criteria #9: Near-identical inputs => identical tier)
+         ======================================================== -->
+    <section id="consistency-lab-view" class="hidden">
+      <div class="card">
+        <div class="card-header">
+          <h2><span>🧪</span> Consistency &amp; Explainability Validation Lab</h2>
+          <span class="badge badge-sent">Success Criteria #9 &amp; #10 Verifier</span>
+        </div>
+        <div class="card-body">
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.5rem; font-size: 0.85rem; color: #1e40af;">
+            <strong>Assignment Success Criterion 9:</strong> <em>"Given two clients with comparable size, department mix, and AI experience, the system assigns the same package tier both times. This directly tests the confirmed consistency goal, not just a subjective impression of it."</em>
+          </div>
+
+          <div class="consistency-test-box">
+            <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem;">Deterministic Twin-Test Simulation</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+              Click below to simulate two independent clients with identical parameter profiles (e.g. 240 staff, Logistics, 3 departments, 'Exploring' AI experience) processed through the rule engine.
+            </p>
+
+            <button type="button" class="btn btn-primary" onclick="window.MazbienApp.runConsistencyTest()">
+              <span>▶ Run Automated Consistency Verification Test</span>
+            </button>
+
+            <div id="consistency-test-results" class="consistency-result-grid hidden">
+              <div class="consistency-card">
+                <div style="font-weight: 800; font-size: 0.85rem; color: var(--brand-primary); margin-bottom: 0.35rem;">CLIENT PROFILE A: TransGlobal Logistics</div>
+                <div id="test-client-a-details" style="font-size: 0.8rem; line-height: 1.6;"></div>
+              </div>
+
+              <div class="consistency-card">
+                <div style="font-weight: 800; font-size: 0.85rem; color: var(--brand-primary); margin-bottom: 0.35rem;">CLIENT PROFILE B: SwiftFreight Express</div>
+                <div id="test-client-b-details" style="font-size: 0.8rem; line-height: 1.6;"></div>
+              </div>
+            </div>
+
+            <div id="consistency-verdict-box" style="margin-top: 1.25rem;" class="hidden">
+              <!-- Match banner -->
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================
+       MODAL: SEND FOR REVIEW (WORKFLOW B FINAL STEP)
+       (Project owner reversal: No auto-pay, no auto-send)
+       ======================================================== -->
+  <div id="send-review-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--brand-navy); display: flex; align-items: center; gap: 0.5rem;">
+          <span>📤</span> Confirm "Send For Review"
+        </h3>
+        <button type="button" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--text-muted);" onclick="window.MazbienApp.closeSendForReviewModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        
+        <div style="background: var(--warning-bg); border: 1px solid var(--warning-border); border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.825rem; color: #92400e;">
+          <strong>Confirmed MVP Boundary:</strong> In accordance with the project owner's confirmed reversal:
+          <ul style="margin: 0.4rem 0 0 1.25rem; line-height: 1.4;">
+            <li>This action <strong>finalizes the draft internally</strong> for senior partner review.</li>
+            <li>It does <strong>NOT trigger billing or payment</strong>.</li>
+            <li>It does <strong>NOT auto-send anything to the client</strong>.</li>
+          </ul>
+        </div>
+
+        <div style="margin-bottom: 1rem; font-size: 0.85rem;">
+          <div><strong>Client:</strong> <span id="modal-client-name">Apex Supply Chain Logistics</span></div>
+          <div><strong>Assigned Package Tier:</strong> <span id="modal-client-tier">Gold (Enterprise Transformation)</span></div>
+          <div><strong>Assessed Roles:</strong> <span id="modal-client-roles">4 distinct roles</span></div>
+          <div><strong>Consultant Sign-off:</strong> Elena Rostova (Lead AI Consultant)</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Final Internal Review Notes (Optional)</label>
+          <textarea id="modal-review-notes" class="form-control" rows="3" placeholder="Add any private notes for the Mazbien review committee before formal proposal generation..."></textarea>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="window.MazbienApp.closeSendForReviewModal()">Cancel</button>
+        <button type="button" class="btn btn-success" onclick="window.MazbienApp.confirmSendForReview()">
+          <span>✓ Finalize &amp; Mark "Sent for Review"</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
