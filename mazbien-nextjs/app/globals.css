@@ -1,0 +1,59 @@
+:root {
+  --ink: #102033;
+  --ink-soft: #1c334d;
+  --navy: #0b1b2e;
+  --brass: #c4a35a;
+  --brass-deep: #9a7b38;
+  --paper: #f6f1e8;
+  --paper-2: #efe8db;
+  --hairline: #d7ccb8;
+  --text: #1c1914;
+  --muted: #6b6256;
+  --danger: #8b2e2e;
+  --success: #2d5a3d;
+  --high: #8b2e2e;
+  --medium: #8a5a12;
+  --low: #2d5a3d;
+  --shadow: 0 12px 32px rgba(11, 27, 46, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  color: var(--text);
+  background: var(--paper);
+  font-family: var(--font-sans), "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+.serif {
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
