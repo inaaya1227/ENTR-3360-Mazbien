@@ -1,0 +1,112 @@
+/* [project]/components/AppShell.module.css [app-client] (css) */
+.AppShell-module__JCX2KW__shell {
+  grid-template-columns: 268px 1fr;
+  min-height: 100vh;
+  display: grid;
+}
+
+.AppShell-module__JCX2KW__sidebar {
+  background: linear-gradient(180deg, var(--navy) 0%, var(--ink) 100%);
+  color: #f4efe6;
+  border-right: 1px solid #c4a35a47;
+  flex-direction: column;
+  padding: 1.5rem 1.15rem 1.25rem;
+  display: flex;
+}
+
+.AppShell-module__JCX2KW__brand {
+  border-bottom: 1px solid #ffffff1f;
+  align-items: flex-start;
+  gap: .75rem;
+  padding-bottom: 1.25rem;
+  display: flex;
+}
+
+.AppShell-module__JCX2KW__mark {
+  border: 1px solid var(--brass);
+  width: 36px;
+  height: 36px;
+  color: var(--brass);
+  font-family: var(--font-serif), Georgia, serif;
+  place-items: center;
+  font-weight: 700;
+  display: grid;
+}
+
+.AppShell-module__JCX2KW__brand h1 {
+  letter-spacing: .02em;
+  font-size: 1.35rem;
+}
+
+.AppShell-module__JCX2KW__brand p {
+  color: #f4efe6ad;
+  margin-top: .15rem;
+  font-size: .72rem;
+}
+
+.AppShell-module__JCX2KW__nav {
+  flex-direction: column;
+  gap: .35rem;
+  margin-top: 1.25rem;
+  display: flex;
+}
+
+.AppShell-module__JCX2KW__link {
+  color: #f4efe6d1;
+  border: 1px solid #0000;
+  align-items: center;
+  gap: .6rem;
+  padding: .65rem .7rem;
+  font-size: .88rem;
+  display: flex;
+}
+
+.AppShell-module__JCX2KW__link:hover, .AppShell-module__JCX2KW__active {
+  color: #fff;
+  background: #c4a35a1a;
+  border-color: #c4a35a73;
+}
+
+.AppShell-module__JCX2KW__consultant {
+  color: #f4efe6bf;
+  border-top: 1px solid #ffffff1f;
+  margin-top: auto;
+  padding-top: 1rem;
+  font-size: .78rem;
+}
+
+.AppShell-module__JCX2KW__consultant strong {
+  color: #fff;
+  margin-bottom: .15rem;
+  display: block;
+}
+
+.AppShell-module__JCX2KW__main {
+  padding: 1.5rem 1.75rem 3rem;
+}
+
+.AppShell-module__JCX2KW__eyebrow {
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--brass-deep);
+  margin-bottom: .35rem;
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .AppShell-module__JCX2KW__shell {
+    grid-template-columns: 1fr;
+  }
+
+  .AppShell-module__JCX2KW__sidebar {
+    border-bottom: 1px solid #c4a35a47;
+    border-right: 0;
+  }
+
+  .AppShell-module__JCX2KW__nav {
+    flex-flow: wrap;
+  }
+}
+
+/*# sourceMappingURL=components_AppShell_module_css_1igg3k2._.single.css.map*/

@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/app/globals.css"],"sourcesContent":[":root {\r\n  --ink: #102033;\r\n  --ink-soft: #1c334d;\r\n  --navy: #0b1b2e;\r\n  --brass: #c4a35a;\r\n  --brass-deep: #9a7b38;\r\n  --paper: #f6f1e8;\r\n  --paper-2: #efe8db;\r\n  --hairline: #d7ccb8;\r\n  --text: #1c1914;\r\n  --muted: #6b6256;\r\n  --danger: #8b2e2e;\r\n  --success: #2d5a3d;\r\n  --high: #8b2e2e;\r\n  --medium: #8a5a12;\r\n  --low: #2d5a3d;\r\n  --shadow: 0 12px 32px rgba(11, 27, 46, 0.08);\r\n}\r\n\r\n* {\r\n  box-sizing: border-box;\r\n  padding: 0;\r\n  margin: 0;\r\n}\r\n\r\nhtml,\r\nbody {\r\n  min-height: 100%;\r\n}\r\n\r\nbody {\r\n  color: var(--text);\r\n  background: var(--paper);\r\n  font-family: var(--font-sans), \"Segoe UI\", sans-serif;\r\n  -webkit-font-smoothing: antialiased;\r\n}\r\n\r\nh1,\r\nh2,\r\nh3,\r\n.serif {\r\n  font-family: var(--font-serif), Georgia, serif;\r\n}\r\n\r\na {\r\n  color: inherit;\r\n  text-decoration: none;\r\n}\r\n\r\nbutton,\r\ninput,\r\nselect,\r\ntextarea {\r\n  font: inherit;\r\n}\r\n\r\nbutton {\r\n  cursor: pointer;\r\n}\r\n"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;;;;;;AAmBA;;;;;;AAMA;;;;AAKA;;;;;;;AAOA;;;;AAOA;;;;;AAKA;;;;AAOA"}}]
+}

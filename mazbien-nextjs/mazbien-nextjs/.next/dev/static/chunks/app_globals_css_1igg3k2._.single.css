@@ -1,3 +1,4 @@
+/* [project]/app/globals.css [app-client] (css) */
 :root {
   --ink: #102033;
   --ink-soft: #1c334d;
@@ -14,17 +15,16 @@
   --high: #8b2e2e;
   --medium: #8a5a12;
   --low: #2d5a3d;
-  --shadow: 0 12px 32px rgba(11, 27, 46, 0.08);
+  --shadow: 0 12px 32px #0b1b2e14;
 }
 
 * {
   box-sizing: border-box;
-  padding: 0;
   margin: 0;
+  padding: 0;
 }
 
-html,
-body {
+html, body {
   min-height: 100%;
 }
 
@@ -35,10 +35,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1,
-h2,
-h3,
-.serif {
+h1, h2, h3, .serif {
   font-family: var(--font-serif), Georgia, serif;
 }
 
@@ -47,13 +44,12 @@ a {
   text-decoration: none;
 }
 
-button,
-input,
-select,
-textarea {
+button, input, select, textarea {
   font: inherit;
 }
 
 button {
   cursor: pointer;
 }
+
+/*# sourceMappingURL=app_globals_css_1igg3k2._.single.css.map*/
