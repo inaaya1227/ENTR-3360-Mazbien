@@ -17,6 +17,7 @@ export function emptyDraft() {
     consultantNotes: "",
     premiumOverride: false,
     addonOverrides: {},
+    customAddons: [],
     checklist: {},
     status: "draft",
   };

@@ -44,6 +44,12 @@
   margin-bottom: 1rem;
 }
 
+.nested {
+  margin-left: 1.15rem;
+  padding-left: 0.85rem;
+  border-left: 2px solid var(--brass);
+}
+
 .label {
   font-size: 0.82rem;
   font-weight: 700;

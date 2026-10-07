@@ -6,7 +6,7 @@ export default function FollowupPage() {
     <AppShell
       eyebrow="Workflow 02"
       title="Adaptive follow-up"
-      lede="Short, rule-based questions from intake gaps. Answer what you heard, or leave blank for a later call."
+      lede="Rule-based questions from intake gaps. A specific answer can open one more, more specific question."
     >
       <FollowupForm />
     </AppShell>

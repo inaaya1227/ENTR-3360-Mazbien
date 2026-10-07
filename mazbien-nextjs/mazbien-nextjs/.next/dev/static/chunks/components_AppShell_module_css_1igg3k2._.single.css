@@ -77,8 +77,22 @@
 
 .AppShell-module__JCX2KW__consultant strong {
   color: #fff;
+  word-break: break-word;
   margin-bottom: .15rem;
   display: block;
+}
+
+.AppShell-module__JCX2KW__signOut {
+  color: #f4efe6;
+  background: none;
+  border: 1px solid #c4a35ab3;
+  margin-top: .75rem;
+  padding: .4rem .7rem;
+  font-size: .78rem;
+}
+
+.AppShell-module__JCX2KW__signOut:hover {
+  background: #c4a35a29;
 }
 
 .AppShell-module__JCX2KW__main {

@@ -1,3 +1,4 @@
+import { buildSelectedAddons } from "./addons";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient";
 import { loadLocalHistory, pushLocalHistory } from "./draftStore";
 import { TIER_COPY } from "./catalog";
@@ -14,6 +15,7 @@ export async function saveAssessmentForReview({ draft, scoring, displayTier, pat
     tier: displayTier,
     score: scoring.total,
     status: "sent_for_review",
+    selected_addons: buildSelectedAddons(draft, scoring.recommendedTier),
   };
 
   const localRecord = {
@@ -24,6 +26,15 @@ export async function saveAssessmentForReview({ draft, scoring, displayTier, pat
   };
 
   const supabase = getSupabaseClient();
+  if (supabase) {
+    const { data: userResult, error: userError } = await supabase.auth.getUser();
+    if (userError || !userResult?.user) {
+      return { ok: false, error: "Sign in before sending for review." };
+    }
+    payload.consultant_id = userResult.user.id;
+    localRecord.consultant_id = userResult.user.id;
+  }
+
   if (!supabase) {
     pushLocalHistory(localRecord);
     return {

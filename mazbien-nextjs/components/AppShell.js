@@ -1,10 +1,12 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ClipboardList, History, LayoutDashboard, MessageSquareText } from "lucide-react";
 import { DraftProvider } from "@/lib/draftContext";
+import { getSupabaseClient } from "@/lib/supabaseClient";
+import { useSession } from "@/lib/useSession";
 import styles from "./AppShell.module.css";
 
 const LINKS = [
@@ -16,6 +18,22 @@ const LINKS = [
 
 function AppShellInner({ children, eyebrow, title, lede }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const session = useSession();
+
+  useEffect(() => {
+    if (session === null) router.replace("/login");
+  }, [session, router]);
+
+  async function signOut() {
+    const supabase = getSupabaseClient();
+    if (supabase) await supabase.auth.signOut();
+    router.replace("/login");
+  }
+
+  if (!session) {
+    return <div className={styles.shell}>Checking session…</div>;
+  }
 
   return (
     <div className={styles.shell}>
@@ -44,8 +62,11 @@ function AppShellInner({ children, eyebrow, title, lede }) {
           })}
         </nav>
         <div className={styles.consultant}>
-          <strong>Elena Rostova</strong>
-          Lead consultant · internal use only
+          <strong>{session.user.email}</strong>
+          Signed in · internal use only
+          <button type="button" className={styles.signOut} onClick={signOut}>
+            Sign Out
+          </button>
         </div>
       </aside>
       <div className={styles.main}>

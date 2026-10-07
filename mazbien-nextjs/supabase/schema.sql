@@ -1,4 +1,7 @@
--- Run this in the Supabase SQL editor before using Send For Review.
+-- Full Mazbien schema, including consultant ownership and selected add-ons.
+-- Safe to re-run in the Supabase SQL editor.
+-- Email/password auth is Supabase Auth (auth.users). Turn on the Email provider
+-- and, for this project, turn off "Confirm email" so sign-up returns a session.
 
 create table if not exists public.assessments (
   id uuid primary key default gen_random_uuid(),
@@ -12,7 +15,9 @@ create table if not exists public.assessments (
   tier text,
   score integer,
   status text default 'sent_for_review',
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  consultant_id uuid references auth.users(id) on delete cascade,
+  selected_addons jsonb not null default '[]'::jsonb
 );
 
 create table if not exists public.roles (
@@ -31,13 +36,101 @@ create table if not exists public.followup_answers (
   answer_text text
 );
 
+alter table public.assessments
+  add column if not exists consultant_id uuid references auth.users(id) on delete cascade;
+
+alter table public.assessments
+  add column if not exists selected_addons jsonb not null default '[]'::jsonb;
+
+create index if not exists assessments_consultant_id_idx
+  on public.assessments (consultant_id);
+
 alter table public.assessments enable row level security;
 alter table public.roles enable row level security;
 alter table public.followup_answers enable row level security;
 
-create policy "anon_read_assessments" on public.assessments for select using (true);
-create policy "anon_insert_assessments" on public.assessments for insert with check (true);
-create policy "anon_read_roles" on public.roles for select using (true);
-create policy "anon_insert_roles" on public.roles for insert with check (true);
-create policy "anon_read_followups" on public.followup_answers for select using (true);
-create policy "anon_insert_followups" on public.followup_answers for insert with check (true);
+drop policy if exists "anon_read_assessments" on public.assessments;
+drop policy if exists "anon_insert_assessments" on public.assessments;
+drop policy if exists "anon_read_roles" on public.roles;
+drop policy if exists "anon_insert_roles" on public.roles;
+drop policy if exists "anon_read_followups" on public.followup_answers;
+drop policy if exists "anon_insert_followups" on public.followup_answers;
+
+drop policy if exists "consultants_select_own_assessments" on public.assessments;
+drop policy if exists "consultants_insert_own_assessments" on public.assessments;
+drop policy if exists "consultants_select_own_roles" on public.roles;
+drop policy if exists "consultants_insert_own_roles" on public.roles;
+drop policy if exists "consultants_select_own_followups" on public.followup_answers;
+drop policy if exists "consultants_insert_own_followups" on public.followup_answers;
+
+create policy "consultants_select_own_assessments"
+  on public.assessments
+  for select
+  to authenticated
+  using (consultant_id = auth.uid());
+
+create policy "consultants_insert_own_assessments"
+  on public.assessments
+  for insert
+  to authenticated
+  with check (consultant_id = auth.uid());
+
+create policy "consultants_select_own_roles"
+  on public.roles
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.assessments a
+      where a.id = roles.assessment_id
+        and a.consultant_id = auth.uid()
+    )
+  );
+
+create policy "consultants_insert_own_roles"
+  on public.roles
+  for insert
+  to authenticated
+  with check (
+    exists (
+      select 1
+      from public.assessments a
+      where a.id = assessment_id
+        and a.consultant_id = auth.uid()
+    )
+  );
+
+create policy "consultants_select_own_followups"
+  on public.followup_answers
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.assessments a
+      where a.id = followup_answers.assessment_id
+        and a.consultant_id = auth.uid()
+    )
+  );
+
+create policy "consultants_insert_own_followups"
+  on public.followup_answers
+  for insert
+  to authenticated
+  with check (
+    exists (
+      select 1
+      from public.assessments a
+      where a.id = assessment_id
+        and a.consultant_id = auth.uid()
+    )
+  );
+
+grant select, insert on public.assessments to authenticated;
+grant select, insert on public.roles to authenticated;
+grant select, insert on public.followup_answers to authenticated;
+
+revoke all on public.assessments from anon;
+revoke all on public.roles from anon;
+revoke all on public.followup_answers from anon;

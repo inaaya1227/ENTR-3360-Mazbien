@@ -65,11 +65,13 @@ export default function FollowupForm() {
       </div>
       <div className={ui.body}>
         <div className={ui.callout}>
-          These questions are generated from department mix, AI experience, and pain-point language. Leave any item
-          blank if the client has not answered yet.
+          First questions come from the department mix, AI experience, and pain-point language. A specific answer can
+          open one more question. The reason stays visible so the branch is explainable. Leave any item blank if the
+          client has not answered yet.
         </div>
         {questions.map((question) => (
-          <div key={question.id} className={ui.field}>
+          <div key={question.id} className={question.depth === 2 ? `${ui.field} ${ui.nested}` : ui.field}>
+            {question.depth === 2 ? <div className={ui.hint}>Deeper follow-up · {question.because}</div> : null}
             <label className={ui.label} htmlFor={question.id}>
               {question.question}
             </label>

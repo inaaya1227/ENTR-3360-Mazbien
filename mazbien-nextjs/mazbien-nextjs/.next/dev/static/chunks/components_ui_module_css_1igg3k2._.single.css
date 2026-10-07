@@ -45,6 +45,12 @@
   display: flex;
 }
 
+.ui-module__gjHJ_W__nested {
+  border-left: 2px solid var(--brass);
+  margin-left: 1.15rem;
+  padding-left: .85rem;
+}
+
 .ui-module__gjHJ_W__label {
   font-size: .82rem;
   font-weight: 700;

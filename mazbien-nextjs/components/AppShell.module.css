@@ -80,6 +80,20 @@
   display: block;
   color: #fff;
   margin-bottom: 0.15rem;
+  word-break: break-word;
+}
+
+.signOut {
+  margin-top: 0.75rem;
+  border: 1px solid rgba(196, 163, 90, 0.7);
+  background: transparent;
+  color: #f4efe6;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+.signOut:hover {
+  background: rgba(196, 163, 90, 0.16);
 }
 
 .main {

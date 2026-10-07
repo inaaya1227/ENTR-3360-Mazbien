@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TIER_COPY } from "@/lib/catalog";
-import { suggestAddons } from "@/lib/addons";
+import { ADDON_CATALOG, buildSelectedAddons, isCatalogAddonSelected, isCustomAddonSelected, suggestAddons } from "@/lib/addons";
 import { saveAssessmentForReview } from "@/lib/assessments";
 import { intakeIsComplete } from "@/lib/draftStore";
 import { useDraft } from "@/lib/draftContext";
@@ -21,6 +21,8 @@ export default function DashboardClient() {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [customName, setCustomName] = useState("");
+  const [customError, setCustomError] = useState("");
 
   const scoring = useMemo(
     () =>
@@ -35,6 +37,16 @@ export default function DashboardClient() {
   const copy = TIER_COPY[displayTier];
   const pathways = useMemo(() => buildPathways(draft), [draft]);
   const addons = useMemo(() => suggestAddons(draft, scoring.recommendedTier), [draft, scoring.recommendedTier]);
+  const suggestedIds = useMemo(() => new Set(addons.map((item) => item.id)), [addons]);
+  const orderedCatalog = useMemo(() => {
+    return [...ADDON_CATALOG].sort(
+      (a, b) => Number(suggestedIds.has(b.id)) - Number(suggestedIds.has(a.id)),
+    );
+  }, [suggestedIds]);
+  const selectedAddons = useMemo(
+    () => buildSelectedAddons(draft, scoring.recommendedTier),
+    [draft, scoring.recommendedTier],
+  );
   const readiness = useMemo(() => allDepartmentReadiness(draft), [draft]);
   const selectedDept = readiness[deptIndex] || readiness[0];
   const checklist = useMemo(() => buildChecklist(draft, displayTier), [draft, displayTier]);
@@ -45,6 +57,42 @@ export default function DashboardClient() {
 
   function persist(next) {
     setDraft(next);
+  }
+
+  function toggleAddon(id, checked) {
+    persist({
+      ...draft,
+      addonOverrides: { ...draft.addonOverrides, [id]: checked },
+    });
+  }
+
+  function addCustomAddon() {
+    const name = customName.trim();
+    if (!name) {
+      setCustomError("Type an add-on name first.");
+      return;
+    }
+    const duplicate = (draft.customAddons || []).some((item) => item.name.trim().toLowerCase() === name.toLowerCase());
+    if (duplicate) {
+      setCustomError("That add-on is already on the list.");
+      return;
+    }
+    setCustomError("");
+    persist({
+      ...draft,
+      customAddons: [...(draft.customAddons || []), { id: `custom:${crypto.randomUUID()}`, name }],
+    });
+    setCustomName("");
+  }
+
+  function removeCustomAddon(id) {
+    const nextOverrides = { ...draft.addonOverrides };
+    delete nextOverrides[id];
+    persist({
+      ...draft,
+      addonOverrides: nextOverrides,
+      customAddons: (draft.customAddons || []).filter((item) => item.id !== id),
+    });
   }
 
   async function confirmSend() {
@@ -204,25 +252,74 @@ export default function DashboardClient() {
 
           <div className={ui.card} style={{ marginBottom: "1rem" }}>
             <div className={ui.header}>
-              <h3>Suggested add-ons</h3>
+              <h3>Add-ons</h3>
+              <span className={ui.badge}>{selectedAddons.length} selected</span>
             </div>
             <div className={ui.body}>
-              {addons.map((addon) => (
-                <label key={addon.id} style={{ display: "block", marginBottom: "0.85rem" }}>
+              <p className={ui.hint} style={{ marginBottom: "0.9rem" }}>
+                Suggested items start checked. Turn any add-on on or off, or add one that is not on the list. Send For
+                Review saves this selection.
+              </p>
+              {orderedCatalog.map((addon) => {
+                const suggested = suggestedIds.has(addon.id);
+                return (
+                  <label key={addon.id} style={{ display: "flex", gap: "0.55rem", alignItems: "flex-start", marginBottom: "0.85rem" }}>
+                    <input
+                      type="checkbox"
+                      checked={isCatalogAddonSelected(draft, addon.id, suggestedIds)}
+                      onChange={(event) => toggleAddon(addon.id, event.target.checked)}
+                      style={{ marginTop: "0.2rem" }}
+                    />
+                    <span>
+                      <strong>{addon.name}</strong>{" "}
+                      {suggested ? <span className={ui.badge}>Suggested</span> : null}
+                      <div className={ui.hint}>{addon.detail}</div>
+                      {suggested ? <div className={ui.hint}>{addon.why}</div> : null}
+                    </span>
+                  </label>
+                );
+              })}
+              {(draft.customAddons || []).map((addon) => (
+                <div key={addon.id} style={{ display: "flex", gap: "0.55rem", alignItems: "flex-start", marginBottom: "0.85rem" }}>
                   <input
                     type="checkbox"
-                    checked={draft.addonOverrides[addon.id] !== false}
-                    onChange={(event) =>
-                      persist({
-                        ...draft,
-                        addonOverrides: { ...draft.addonOverrides, [addon.id]: event.target.checked },
-                      })
-                    }
-                  />{" "}
-                  <strong>{addon.name}</strong>
-                  <div className={ui.hint}>{addon.why}</div>
-                </label>
+                    checked={isCustomAddonSelected(draft, addon.id)}
+                    onChange={(event) => toggleAddon(addon.id, event.target.checked)}
+                    style={{ marginTop: "0.2rem" }}
+                  />
+                  <span style={{ flex: 1 }}>
+                    <strong>{addon.name}</strong> <span className={ui.badge}>Custom</span>
+                    <div className={ui.hint}>Added for this client.</div>
+                  </span>
+                  <button type="button" className={ui.btnSecondary} onClick={() => removeCustomAddon(addon.id)}>
+                    Remove
+                  </button>
+                </div>
               ))}
+              <div className={ui.field} style={{ marginBottom: 0, marginTop: "0.4rem" }}>
+                <label className={ui.label} htmlFor="custom-addon">
+                  Add custom add-on
+                </label>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <input
+                    id="custom-addon"
+                    className={ui.input}
+                    value={customName}
+                    onChange={(event) => setCustomName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addCustomAddon();
+                      }
+                    }}
+                    placeholder="On-site kickoff workshop"
+                  />
+                  <button type="button" className={ui.btnSecondary} onClick={addCustomAddon}>
+                    Add
+                  </button>
+                </div>
+                {customError ? <span className={ui.error}>{customError}</span> : null}
+              </div>
             </div>
           </div>
 
@@ -354,6 +451,10 @@ export default function DashboardClient() {
               </p>
               <p>
                 <strong>Roles:</strong> {draft.roles.length}
+              </p>
+              <p>
+                <strong>Add-ons:</strong>{" "}
+                {selectedAddons.length ? selectedAddons.map((item) => item.name).join(", ") : "None selected"}
               </p>
             </div>
             <div className={ui.footer}>
