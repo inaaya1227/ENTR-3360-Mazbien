@@ -1,6 +1,6 @@
 import { buildSelectedAddons } from "./addons";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient";
-import { loadLocalHistory, pushLocalHistory } from "./draftStore";
+import { pushLocalHistory } from "./draftStore";
 import { TIER_COPY } from "./catalog";
 
 export async function saveAssessmentForReview({ draft, scoring, displayTier, pathways }) {
@@ -91,20 +91,22 @@ export async function saveAssessmentForReview({ draft, scoring, displayTier, pat
 }
 
 export async function fetchAssessmentHistory() {
-  const local = loadLocalHistory();
-
   if (!isSupabaseConfigured()) {
-    return { rows: local, source: "local", warning: "Showing device history until Supabase is configured." };
+    return {
+      rows: [],
+      source: "supabase",
+      warning: "Supabase is not configured, so history cannot be loaded.",
+    };
   }
 
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("assessments")
-    .select("id, company_name, industry, size, departments, tier, score, status, created_at")
+    .select("id, company_name, industry, tier, status, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {
-    return { rows: local, source: "local", warning: error.message };
+    return { rows: [], source: "supabase", warning: error.message };
   }
 
   return { rows: data || [], source: "supabase" };

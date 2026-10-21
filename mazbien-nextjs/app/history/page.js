@@ -6,7 +6,7 @@ export default function HistoryPage() {
     <AppShell
       eyebrow="Reference library"
       title="Assessment history"
-      lede="Look up how similar companies and department mixes were scored before you lock a new draft."
+      lede="Assessments you sent for review. Supabase only returns rows owned by the signed-in consultant."
     >
       <HistoryTable />
     </AppShell>
