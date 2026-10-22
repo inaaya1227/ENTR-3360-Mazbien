@@ -26,11 +26,74 @@ function percentAtLeast(answer, threshold) {
   return matches.some((token) => Number.parseFloat(token) >= threshold);
 }
 
+function humanList(items) {
+  if (!items?.length) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+function roleClause(ctx, department) {
+  const names = (ctx.rolesByDept?.[department] || []).map((name) => String(name).trim()).filter(Boolean);
+  if (!names.length) return "";
+  if (names.length === 1) return ` (${names[0]})`;
+  if (names.length === 2) return ` (${names[0]} and ${names[1]})`;
+  return ` (${names[0]}, ${names[1]}, and the other ${department} roles)`;
+}
+
+function ask(department, prompts) {
+  return (ctx) => {
+    const roles = roleClause(ctx, department);
+    const level = ctx.experience?.[department];
+    const writer = prompts[level] || prompts.Some;
+    return writer(ctx.company, roles, ctx);
+  };
+}
+
+function painExcerpt(pain) {
+  const clean = String(pain || "").replace(/\s+/g, " ").trim();
+  if (clean.length <= 140) return clean;
+  return `${clean.slice(0, 137).trim()}…`;
+}
+
+function buildContext(draft) {
+  const departments = draft.departments || [];
+  const experience = draft.departmentExperience || {};
+  const rolesByDept = {};
+  for (const role of draft.roles || []) {
+    const name = role.name?.trim();
+    if (!name || !role.department) continue;
+    if (!rolesByDept[role.department]) rolesByDept[role.department] = [];
+    rolesByDept[role.department].push(name);
+  }
+  return {
+    company: draft.companyName?.trim() || "the client",
+    industry: draft.industry?.trim() || "",
+    departments,
+    experience,
+    rolesByDept,
+    pain: draft.painPoints || "",
+    noneDepartments: departments.filter((department) => experience[department] === "None"),
+    advancedDepartments: departments.filter((department) => experience[department] === "Advanced"),
+  };
+}
+
+function textOf(value, ctx) {
+  return typeof value === "function" ? value(ctx) : value;
+}
+
 const DEPARTMENT_QUESTIONS = [
   {
     department: "Sales",
     id: "sales-cycle",
-    question: "How many hours per week do sellers spend writing proposals, follow-ups, or CRM notes?",
+    question: ask("Sales", {
+      None: (company, roles) =>
+        `${company} marked Sales${roles} as new to AI. Which proposal, follow-up, or CRM tasks are still done entirely by hand?`,
+      Some: (company, roles) =>
+        `Sales at ${company}${roles} has some AI experience. Where does that help stop, and how many hours a week still go to proposals, follow-ups, or CRM notes?`,
+      Advanced: (company, roles) =>
+        `Sales at ${company}${roles} already uses AI. Which tools are approved, and where do people still paste deal notes into a personal account?`,
+    }),
     branches: [
       {
         id: "sales-where-hours",
@@ -57,7 +120,14 @@ const DEPARTMENT_QUESTIONS = [
   {
     department: "Customer Service",
     id: "ticket-volume",
-    question: "What is typical weekly ticket or case volume, and what share is repetitive tier-1 work?",
+    question: ask("Customer Service", {
+      None: (company, roles) =>
+        `${company} marked Customer Service${roles} as new to AI. What weekly ticket or case volume is still handled by hand, and how much of it is repetitive tier-1 work?`,
+      Some: (company, roles) =>
+        `Customer Service at ${company}${roles} already uses some AI. What weekly volume is left, and where do drafted replies still get rewritten?`,
+      Advanced: (company, roles) =>
+        `Customer Service at ${company}${roles} is advanced with AI. Which reply tools are approved, and where do agents still paste customer details into a personal account?`,
+    }),
     branches: [
       {
         id: "cs-sla",
@@ -85,9 +155,16 @@ const DEPARTMENT_QUESTIONS = [
     ],
   },
   {
-    department: "Operations",
+    department: "Administration/OPS",
     id: "ops-handoffs",
-    question: "Where do handoffs, status chasing, or recurring reports slow the operating cadence?",
+    question: ask("Administration/OPS", {
+      None: (company, roles) =>
+        `${company} marked Administration/OPS${roles} as new to AI. Where do handoffs, status chasing, or recurring reports still run entirely by hand?`,
+      Some: (company, roles) =>
+        `Administration/OPS at ${company}${roles} has some AI experience. Where do handoffs, status updates, or recurring reports still stall the operating cadence?`,
+      Advanced: (company, roles) =>
+        `Administration/OPS at ${company}${roles} already uses AI. Which workflows are standardized, and where do people still keep a private workaround?`,
+    }),
     branches: [
       {
         id: "ops-slowest-handoff",
@@ -112,7 +189,14 @@ const DEPARTMENT_QUESTIONS = [
   {
     department: "Finance",
     id: "finance-data",
-    question: "Which finance datasets — forecasts, payroll, invoices, or close files — would staff want AI to touch?",
+    question: ask("Finance", {
+      None: (company, roles) =>
+        `${company} marked Finance${roles} as new to AI. Which datasets — forecasts, payroll, invoices, or close files — should AI be allowed to touch, and which must stay closed?`,
+      Some: (company, roles) =>
+        `Finance at ${company}${roles} has some AI experience. Which forecasts, invoices, or close notes are safe to draft, and which still need a human pass?`,
+      Advanced: (company, roles) =>
+        `Finance at ${company}${roles} already uses AI. Which datasets are approved, and where is payroll or close data still leaving the sanctioned tool?`,
+    }),
     branches: [
       {
         id: "finance-payroll-access",
@@ -137,7 +221,14 @@ const DEPARTMENT_QUESTIONS = [
   {
     department: "Human Resources",
     id: "hr-process",
-    question: "Which people processes are the most repetitive: screening, onboarding, policy questions, or employee communications?",
+    question: ask("Human Resources", {
+      None: (company, roles) =>
+        `${company} marked Human Resources${roles} as new to AI. Which people processes are still fully manual: screening, onboarding, policy questions, or employee communications?`,
+      Some: (company, roles) =>
+        `Human Resources at ${company}${roles} has some AI experience. Which of screening, onboarding, policy answers, or employee communications still gets rewritten by hand?`,
+      Advanced: (company, roles) =>
+        `Human Resources at ${company}${roles} already uses AI. Which tools are approved for employee data, and what must never be pasted into a personal account?`,
+    }),
     branches: [
       {
         id: "hr-screening-volume",
@@ -162,7 +253,14 @@ const DEPARTMENT_QUESTIONS = [
   {
     department: "Marketing",
     id: "marketing-reuse",
-    question: "How much of content, campaign, or reporting work is rewritten from a previous asset?",
+    question: ask("Marketing", {
+      None: (company, roles) =>
+        `${company} marked Marketing${roles} as new to AI. How much content, campaign, or reporting work is rewritten from a previous asset?`,
+      Some: (company, roles) =>
+        `Marketing at ${company}${roles} has some AI experience. Where do drafts still miss brand or claim rules, and how much is a variant of an older asset?`,
+      Advanced: (company, roles) =>
+        `Marketing at ${company}${roles} already uses AI. Which tools are on the brand standard, and where are people still publishing from a personal account?`,
+    }),
     branches: [
       {
         id: "marketing-asset-volume",
@@ -189,7 +287,14 @@ const DEPARTMENT_QUESTIONS = [
   {
     department: "Engineering",
     id: "code-privacy",
-    question: "Does the client already have an approved AI coding policy, or is code privacy still unresolved?",
+    question: ask("Engineering", {
+      None: (company, roles) =>
+        `${company} marked Engineering${roles} as new to AI. Is there an approved coding policy yet, or is code privacy still unresolved?`,
+      Some: (company, roles) =>
+        `Engineering at ${company}${roles} has some AI experience. Which coding tools are approved, and where does the policy still leave code privacy unresolved?`,
+      Advanced: (company, roles) =>
+        `Engineering at ${company}${roles} already uses AI. Which tools are sanctioned, and where do engineers still paste proprietary code into a personal account?`,
+    }),
     branches: [
       {
         id: "eng-no-policy",
@@ -253,7 +358,14 @@ const DEPARTMENT_QUESTIONS = [
   {
     department: "Legal & Compliance",
     id: "legal-scope",
-    question: "Which contracts, matters, or regulatory filings are in scope for AI-assisted drafting?",
+    question: ask("Legal & Compliance", {
+      None: (company, roles) =>
+        `${company} marked Legal & Compliance${roles} as new to AI. Which contracts, matters, or filings are worth assisted drafting, and which are off limits?`,
+      Some: (company, roles) =>
+        `Legal & Compliance at ${company}${roles} has some AI experience. Which contracts or filings are in scope, and where does a human still have to start over?`,
+      Advanced: (company, roles) =>
+        `Legal & Compliance at ${company}${roles} already uses AI. Which tools are approved for privileged content, and what should be unwound?`,
+    }),
     branches: [
       {
         id: "legal-privilege",
@@ -278,7 +390,14 @@ const DEPARTMENT_QUESTIONS = [
   {
     department: "Logistics",
     id: "shift-coverage",
-    question: "Are dispatch, warehouse, or planning shifts too tight for classroom training, and where does the delay show up?",
+    question: ask("Logistics", {
+      None: (company, roles) =>
+        `${company} marked Logistics${roles} as new to AI. Are dispatch, warehouse, or planning shifts too tight for classroom training, and where does the delay show up?`,
+      Some: (company, roles) =>
+        `Logistics at ${company}${roles} has some AI experience. Where do dispatch or planning drafts still miss the exception, and which shifts can spare time for a lab?`,
+      Advanced: (company, roles) =>
+        `Logistics at ${company}${roles} already uses AI. Which planning tools are approved, and where do people still export the plan to a personal spreadsheet?`,
+    }),
     branches: [
       {
         id: "logistics-shift-block",
@@ -304,7 +423,14 @@ const DEPARTMENT_QUESTIONS = [
 
 const CHANGE_MGMT = {
   id: "change-mgmt",
-  question: "What change-management concerns did leadership raise (job fear, quality control, union or culture issues)?",
+  question: (ctx) => {
+    const teams = ctx.noneDepartments || [];
+    if (!teams.length) {
+      return `What change-management concerns did leadership at ${ctx.company} raise (job fear, quality control, union or culture issues)?`;
+    }
+    const label = teams.length === 1 ? "that team" : "those teams";
+    return `${ctx.company} marked ${humanList(teams)} as new to AI. What change-management concerns did leadership raise for ${label} — job fear, quality, union, or culture?`;
+  },
   branches: [
     {
       id: "change-job-fear",
@@ -323,7 +449,12 @@ const CHANGE_MGMT = {
 
 const SHADOW_AI = {
   id: "shadow-ai",
-  question: "Where is unsanctioned AI already in use, and what should Mazbien standardize versus unwind?",
+  question: (ctx) => {
+    const teams = humanList(ctx.advancedDepartments);
+    return teams
+      ? `${ctx.company} marked ${teams} as already advanced with AI. Where is unsanctioned use still happening, and what should Mazbien standardize versus unwind?`
+      : `Where is unsanctioned AI already in use at ${ctx.company}, and what should Mazbien standardize versus unwind?`;
+  },
   branches: [
     {
       id: "shadow-personal-accounts",
@@ -342,7 +473,13 @@ const SHADOW_AI = {
 
 const TASK_SAMPLES = {
   id: "task-samples",
-  question: "Can the client share 2–3 anonymized examples of the most repetitive tasks for lab design?",
+  question: (ctx) => {
+    const excerpt = painExcerpt(ctx.pain);
+    const lead = excerpt
+      ? `${ctx.company} called out repetitive work: “${excerpt}” `
+      : `${ctx.company} described repetitive work. `;
+    return `${lead}Can they share 2–3 anonymized examples for lab design?`;
+  },
   branches: [
     {
       id: "task-sample-source",
@@ -366,21 +503,81 @@ const TASK_SAMPLES = {
 
 const SUCCESS_METRIC = {
   id: "success-metric",
-  question: "What single success metric should this engagement move in the first 90 days?",
+  question: (ctx) => `What single success metric should ${ctx.company} move in the first 90 days?`,
   branches: [],
 };
 
-function visibleFrom(items, answers) {
+const INDUSTRY_FOCUS = {
+  Technology: "source code, customer environments, or internal support tickets",
+  "Logistics & Transport": "dispatch exceptions, dwell time, or planning handoffs",
+  Healthcare: "patient privacy, clinical handoffs, or documentation load",
+  "Financial Services": "customer data, audit trails, or advice that needs a human sign-off",
+  "Manufacturing": "shop-floor instructions, quality holds, or maintenance notes",
+  "Professional Services": "client deliverables, billable rewrite time, or matter confidentiality",
+  Retail: "customer messages, inventory exceptions, or store reporting",
+  Education: "student data, lesson prep, or administrative questions",
+};
+
+const INDUSTRY_CONSTRAINT = {
+  id: "industry-constraint",
+  question: (ctx) => {
+    const focus = INDUSTRY_FOCUS[ctx.industry];
+    if (focus) {
+      return `${ctx.company} is in ${ctx.industry}. Which of these should limit the labs: ${focus}?`;
+    }
+    return `${ctx.company} works in ${ctx.industry}. What privacy, safety, or client-confidentiality rule in that field should the labs not cross?`;
+  },
+  branches: [
+    {
+      id: "industry-off-limits",
+      because: "Answer names a rule, a data class, or something the labs must not touch.",
+      question: (ctx) => `Who at ${ctx.company} has to approve an exception if a lab exercise needs to use that data?`,
+      when: (answer) =>
+        hasAny(answer, [
+          "hipaa",
+          "phi",
+          "patient",
+          "privacy",
+          "confidential",
+          "audit",
+          "student",
+          "safety",
+          "regulation",
+          "off limits",
+          "off-limits",
+          "cannot",
+          "can't",
+        ]),
+    },
+  ],
+};
+
+const PAIN_PROBE = {
+  id: "pain-owner",
+  question: (ctx) =>
+    `${ctx.company} described this pressure: “${painExcerpt(ctx.pain)}” Which roles own that work, and what does one cycle cost in hours?`,
+  branches: [
+    {
+      id: "pain-owner-keep",
+      because: "Answer names a role, a team, or a time cost.",
+      question: (ctx) => `For that work at ${ctx.company}, what must stay with a person even if AI drafts the first pass?`,
+      when: (answer) =>
+        atLeast(answer, 1) || hasAny(answer, ["hour", "role", "team", "manager", "analyst", "rep", "lead"]),
+    },
+  ],
+};
+
+function visibleFrom(items, answers, ctx) {
   const visible = [];
   for (const item of items) {
-    visible.push({ id: item.id, question: item.question, depth: 1 });
+    visible.push({ id: item.id, question: textOf(item.question, ctx), depth: 1 });
     const answer = answers.find((entry) => entry.id === item.id)?.answer || "";
     if (!String(answer).trim()) continue;
     for (const branch of item.branches || []) {
       if (!branch.when(answer)) continue;
       visible.push({
         id: branch.id,
-        question: branch.question,
+        question: textOf(branch.question, ctx),
         depth: 2,
         parentId: item.id,
         because: branch.because,
@@ -391,13 +588,15 @@ function visibleFrom(items, answers) {
 }
 
 export function generateFollowups(draft) {
-  const departments = draft.departments || [];
-  const primary = DEPARTMENT_QUESTIONS.filter((item) => departments.includes(item.department));
+  const ctx = buildContext(draft || {});
+  const primary = DEPARTMENT_QUESTIONS.filter((item) => ctx.departments.includes(item.department));
 
-  if (draft.aiExperience === "None") primary.push(CHANGE_MGMT);
-  if (draft.aiExperience === "Advanced") primary.push(SHADOW_AI);
-  if (answerText(draft.painPoints).includes("repetitive")) primary.push(TASK_SAMPLES);
+  if (ctx.industry) primary.push(INDUSTRY_CONSTRAINT);
+  if (ctx.pain.trim()) primary.push(PAIN_PROBE);
+  if (ctx.noneDepartments.length) primary.push(CHANGE_MGMT);
+  if (ctx.advancedDepartments.length) primary.push(SHADOW_AI);
+  if (answerText(ctx.pain).includes("repetitive")) primary.push(TASK_SAMPLES);
   if (primary.length === 0) primary.push(SUCCESS_METRIC);
 
-  return visibleFrom(primary, draft.followupAnswers || []);
+  return visibleFrom(primary, draft?.followupAnswers || [], ctx);
 }

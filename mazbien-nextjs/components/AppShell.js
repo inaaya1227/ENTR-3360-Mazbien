@@ -10,7 +10,7 @@ import { useSession } from "@/lib/useSession";
 import styles from "./AppShell.module.css";
 
 const LINKS = [
-  { href: "/", label: "Discovery Intake", icon: ClipboardList },
+  { href: "/intake", label: "Discovery Intake", icon: ClipboardList },
   { href: "/followup", label: "Adaptive Follow-up", icon: MessageSquareText },
   { href: "/dashboard", label: "Consultant Dashboard", icon: LayoutDashboard },
   { href: "/history", label: "Assessment History", icon: History },
@@ -39,7 +39,7 @@ function AppShellInner({ children, eyebrow, title, lede }) {
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
-          <div className={styles.mark}>M</div>
+          <img src="/logo.png" alt="" width={44} height={40} className={styles.logo} />
           <div>
             <h1>Mazbien</h1>
             <p>AI Training Needs Assessment</p>
