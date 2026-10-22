@@ -139,20 +139,16 @@ export default function AuthScreen({ mode, embedded = false }) {
               <div className={ui.callout}>Check your email to confirm your account, then sign in.</div>
             ) : null}
             {error ? <p className={ui.error}>{error}</p> : null}
-            {embedded ? null : (
-              <>
-                <button
-                  type="button"
-                  className={ui.googleBtn}
-                  onClick={continueWithGoogle}
-                  disabled={submitting || session === undefined}
-                >
-                  <GoogleMark />
-                  Continue with Google
-                </button>
-                <p className={ui.authDivider}>or</p>
-              </>
-            )}
+            <button
+              type="button"
+              className={ui.googleBtn}
+              onClick={continueWithGoogle}
+              disabled={submitting || session === undefined}
+            >
+              <GoogleMark />
+              Continue with Google
+            </button>
+            <p className={ui.authDivider}>or</p>
             <label className={ui.field}>
               <span className={ui.label} htmlFor="email">
                 Email
