@@ -1,7 +1,73 @@
+.authLogo {
+  width: 64px;
+  height: auto;
+  display: block;
+  margin: 0 auto 1rem;
+  border-radius: 8px;
+}
+
 .card {
-  background: #fffdf8;
+  background: var(--surface);
   border: 1px solid var(--hairline);
   box-shadow: var(--shadow);
+}
+
+.landingCard {
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+.modeToggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  margin: 1rem 1rem 0;
+  padding: 0.28rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--highlight) 38%, var(--surface));
+}
+
+.modeBtn {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.55rem 0.7rem;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.modeOn {
+  background: var(--accent);
+  color: var(--text);
+}
+
+.landingCard .input {
+  border-radius: 10px;
+  background: #fff;
+}
+
+.landingCard .btn {
+  width: 100%;
+  border-radius: 12px;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text);
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+}
+
+.landingCard .btn:hover:not(:disabled) {
+  background: var(--highlight);
+  border-color: var(--highlight);
+  color: var(--text);
+}
+
+.landingFooter {
+  display: block;
+  border-top: 0;
+  padding-top: 0.2rem;
 }
 
 .header {
@@ -25,6 +91,7 @@
 .footer {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 0.75rem;
   align-items: center;
   padding: 0.85rem 1.15rem;
@@ -70,7 +137,7 @@
 .textarea {
   width: 100%;
   border: 1px solid var(--hairline);
-  background: #fff;
+  background: var(--field);
   padding: 0.55rem 0.7rem;
   color: var(--text);
 }
@@ -83,9 +150,14 @@
 .btn {
   border: 1px solid var(--navy);
   background: var(--navy);
-  color: #f6f1e8;
+  color: var(--on-primary);
   padding: 0.55rem 0.9rem;
   font-size: 0.85rem;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--ink);
+  border-color: var(--ink);
 }
 
 .btnSecondary {
@@ -118,15 +190,15 @@
 .chip,
 .chipOn {
   border: 1px solid var(--hairline);
-  background: #fff;
+  background: var(--field);
   padding: 0.4rem 0.7rem;
   font-size: 0.8rem;
 }
 
 .chipOn {
   border-color: var(--navy);
-  background: var(--ink);
-  color: #f6f1e8;
+  background: var(--navy);
+  color: var(--on-primary);
 }
 
 .stepper {
@@ -141,12 +213,12 @@
   border: 1px solid var(--hairline);
   padding: 0.65rem 0.75rem;
   font-size: 0.78rem;
-  background: #fff;
+  background: var(--field);
 }
 
 .stepOn {
-  border-color: var(--brass);
-  background: #fff8ea;
+  border-color: var(--accent);
+  background: var(--step-bg);
 }
 
 .step strong,
@@ -166,9 +238,9 @@
   padding: 0.2rem 0.45rem;
 }
 
-.high { color: var(--high); border-color: #e4c4c4; }
-.medium { color: var(--medium); border-color: #ead7b3; }
-.low { color: var(--low); border-color: #c9dccf; }
+.high { color: var(--high); border-color: var(--high-border); }
+.medium { color: var(--medium); border-color: var(--medium-border); }
+.low { color: var(--low); border-color: var(--low-border); }
 
 .table {
   width: 100%;
@@ -193,8 +265,8 @@
 }
 
 .callout {
-  border: 1px solid #ead7b3;
-  background: #fff8ea;
+  border: 1px solid var(--callout-border);
+  background: var(--callout-bg);
   padding: 0.85rem 1rem;
   font-size: 0.85rem;
   margin-bottom: 1rem;
@@ -209,21 +281,21 @@
 .tab,
 .tabOn {
   border: 1px solid var(--hairline);
-  background: #fff;
+  background: var(--field);
   padding: 0.55rem 0.85rem;
   font-size: 0.85rem;
 }
 
 .tabOn {
   background: var(--navy);
-  color: #f6f1e8;
+  color: var(--on-primary);
   border-color: var(--navy);
 }
 
 .modalBack {
   position: fixed;
   inset: 0;
-  background: rgba(11, 27, 46, 0.46);
+  background: var(--overlay);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -232,13 +304,67 @@
 
 .modal {
   width: min(560px, 100%);
-  background: #fffdf8;
+  background: var(--surface);
   border: 1px solid var(--hairline);
+}
+
+.checkField {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.checkList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.check input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--accent);
+}
+
+.deptBlock {
+  border: 1px solid var(--hairline);
+  background: var(--paper);
+  border-radius: 12px;
+  padding: 0.9rem 1rem 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.deptBlock h4 {
+  font-size: 1.15rem;
+  margin-bottom: 0.65rem;
+}
+
+.roleRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 0.75rem 1rem;
+  align-items: end;
+  margin-bottom: 0.85rem;
+}
+
+.roleRow .field {
+  margin-bottom: 0;
 }
 
 @media (max-width: 800px) {
   .grid2,
-  .stepper {
+  .stepper,
+  .checkList,
+  .roleRow {
     grid-template-columns: 1fr;
   }
 }

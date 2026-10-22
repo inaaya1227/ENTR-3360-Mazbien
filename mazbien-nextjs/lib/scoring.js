@@ -6,10 +6,18 @@ const EXPERIENCE_WEIGHT = {
   Advanced: 4,
 };
 
-export function scoreAssessment({ roles = [], departments = [], aiExperience = "Some" }) {
+export function scoreAssessment({ roles = [], departments = [], departmentExperience = {} }) {
   const roleCount = roles.length;
   const deptCount = departments.length;
-  const experiencePoints = EXPERIENCE_WEIGHT[aiExperience] ?? 12;
+  const knownLevels = departments
+    .map((department) => departmentExperience[department])
+    .filter((level) => level in EXPERIENCE_WEIGHT);
+  const experiencePoints = knownLevels.length
+    ? Math.round(knownLevels.reduce((sum, level) => sum + EXPERIENCE_WEIGHT[level], 0) / knownLevels.length)
+    : EXPERIENCE_WEIGHT.Some;
+  const experienceValue = departments.length
+    ? departments.map((department) => `${department}: ${departmentExperience[department] || "—"}`).join(", ")
+    : "—";
   const rolePoints = Math.min(roleCount, 10) * 6;
   const deptPoints = Math.min(deptCount, 5) * 8;
   const total = rolePoints + deptPoints + experiencePoints;
@@ -33,8 +41,8 @@ export function scoreAssessment({ roles = [], departments = [], aiExperience = "
     },
     {
       input: "AI experience",
-      value: aiExperience || "—",
-      rule: "None 24 / Some 12 / Advanced 4",
+      value: experienceValue,
+      rule: "Average of department weights (None 24 / Some 12 / Advanced 4)",
       points: experiencePoints,
     },
   ];

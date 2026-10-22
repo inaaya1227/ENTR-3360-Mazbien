@@ -9,7 +9,7 @@ const MODULES_BY_DEPT = {
     "Tier-1 deflection playbooks",
     "Knowledge-base prompting",
   ],
-  Operations: [
+  "Administration/OPS": [
     "SOP summarization",
     "Handoff and exception prompts",
     "Shift huddle copilots",
@@ -46,14 +46,19 @@ const MODULES_BY_DEPT = {
   ],
 };
 
+function experienceFor(draft, department) {
+  return draft.departmentExperience?.[department] || "";
+}
+
 function priorityForRole(role, draft) {
   const pain = (draft.painPoints || "").toLowerCase();
   const dept = role.department.toLowerCase();
-  if (draft.aiExperience === "None") return "High";
+  const experience = experienceFor(draft, role.department);
+  if (experience === "None") return "High";
   if (pain && (pain.includes(dept.split(" ")[0]) || pain.includes(role.name.toLowerCase().split(" ")[0]))) {
     return "High";
   }
-  if (draft.aiExperience === "Advanced") return "Low";
+  if (experience === "Advanced") return "Low";
   return "Medium";
 }
 
@@ -80,7 +85,7 @@ export function buildChecklist(draft, displayTier) {
     "Collect sanitized sample artifacts for role labs",
     "Align success metric and baseline with the stakeholder",
   ];
-  if (draft.aiExperience === "None") {
+  if ((draft.departments || []).some((department) => draft.departmentExperience?.[department] === "None")) {
     items.push("Schedule a change-management briefing before skills labs");
   }
   if (displayTier === "gold" || displayTier === "premium") {
@@ -92,14 +97,18 @@ export function buildChecklist(draft, displayTier) {
   return items;
 }
 
-export function buildProposalSummary(draft, scoring, displayTier, copy) {
+export function buildProposalSummary(draft, scoring, displayTier, copy, quote) {
   const roleNames = (draft.roles || []).map((role) => role.name).join(", ") || "selected roles";
   const depts = (draft.departments || []).join(", ") || "the assessed departments";
   return `${draft.companyName || "The client"} (${draft.industry || "unspecified industry"}, ${
     draft.size || "size TBD"
   }) is recommended for Mazbien ${copy.name} — ${copy.title}. The rule engine scored ${
     scoring.total
-  } points from ${draft.roles?.length || 0} roles, ${draft.departments?.length || 0} departments, and ${
-    draft.aiExperience || "unspecified"
-  } AI experience. Training pathways cover ${roleNames} across ${depts}. This remains a consultant-controlled draft: Send For Review finalizes the file internally and does not bill or message the client.`;
+  } points from ${draft.roles?.length || 0} roles and ${draft.departments?.length || 0} departments. AI experience is ${
+    (draft.departments || [])
+      .map((department) => `${department} (${draft.departmentExperience?.[department] || "unspecified"})`)
+      .join(", ") || "unspecified"
+  }. Training pathways cover ${roleNames} across ${depts}. Quoted price: ${
+    quote?.totalLabel || copy.price
+  }. This remains a consultant-controlled draft: Send For Review finalizes the file internally and does not bill or message the client.`;
 }

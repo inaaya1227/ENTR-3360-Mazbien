@@ -11,7 +11,19 @@ export default function FollowupForm() {
   const router = useRouter();
   const { draft, setDraft, ready } = useDraft();
 
-  const questions = useMemo(() => generateFollowups(draft), [draft]);
+  const questions = useMemo(() => {
+    const generated = generateFollowups(draft);
+    const shown = new Set(generated.map((item) => item.question.trim()));
+    const saved = (draft.followupAnswers || [])
+      .filter((item) => item?.question?.trim() && !shown.has(item.question.trim()))
+      .map((item, index) => ({
+        id: item.id || `saved-${index}`,
+        question: item.question,
+        answer: item.answer || "",
+        depth: 1,
+      }));
+    return [...generated, ...saved];
+  }, [draft]);
 
   function answerFor(question) {
     return draft.followupAnswers.find((item) => item.id === question.id)?.answer || "";
@@ -49,7 +61,7 @@ export default function FollowupForm() {
       <div className={ui.card}>
         <div className={ui.body}>
           <p>Finish discovery intake before generating follow-up questions.</p>
-          <button type="button" className={ui.btn} style={{ marginTop: "1rem" }} onClick={() => router.push("/")}>
+          <button type="button" className={ui.btn} style={{ marginTop: "1rem" }} onClick={() => router.push("/intake")}>
             Return to intake
           </button>
         </div>
@@ -65,9 +77,9 @@ export default function FollowupForm() {
       </div>
       <div className={ui.body}>
         <div className={ui.callout}>
-          First questions come from the department mix, AI experience, and pain-point language. A specific answer can
-          open one more question. The reason stays visible so the branch is explainable. Leave any item blank if the
-          client has not answered yet.
+          Questions use the company name, industry, selected departments, roles, each department’s AI experience, and
+          the pain points already captured. A specific answer can open one more question. The reason stays visible so
+          the branch is explainable. Leave any item blank if the client has not answered yet.
         </div>
         {questions.map((question) => (
           <div key={question.id} className={question.depth === 2 ? `${ui.field} ${ui.nested}` : ui.field}>
@@ -86,8 +98,8 @@ export default function FollowupForm() {
         ))}
       </div>
       <div className={ui.footer}>
-        <button type="button" className={ui.btnSecondary} onClick={() => router.push("/")}>
-          Back to intake
+        <button type="button" className={ui.btnSecondary} onClick={() => router.push("/intake?step=4")}>
+          Back to readiness
         </button>
         <button type="button" className={ui.btn} onClick={continueToDashboard}>
           Open consultant dashboard

@@ -13,10 +13,10 @@ export default function ReadinessRadar({ axes }) {
     <div style={{ width: "100%", height: 320 }}>
       <ResponsiveContainer>
         <RadarChart data={data} cx="50%" cy="50%" outerRadius="70%">
-          <PolarGrid stroke="#d7ccb8" />
-          <PolarAngleAxis dataKey="axis" tick={{ fill: "#1c1914", fontSize: 11 }} />
-          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 10 }} />
-          <Radar name="Readiness" dataKey="score" stroke="#0b1b2e" fill="#c4a35a" fillOpacity={0.45} />
+          <PolarGrid stroke="var(--hairline)" />
+          <PolarAngleAxis dataKey="axis" tick={{ fill: "var(--text)", fontSize: 11 }} />
+          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: "var(--muted)", fontSize: 10 }} stroke="var(--hairline)" />
+          <Radar name="Readiness" dataKey="score" stroke="var(--navy)" fill="var(--accent)" fillOpacity={0.45} />
         </RadarChart>
       </ResponsiveContainer>
     </div>

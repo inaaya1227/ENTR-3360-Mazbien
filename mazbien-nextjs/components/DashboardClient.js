@@ -3,13 +3,22 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TIER_COPY } from "@/lib/catalog";
-import { ADDON_CATALOG, buildSelectedAddons, isCatalogAddonSelected, isCustomAddonSelected, suggestAddons } from "@/lib/addons";
+import {
+  ADDON_CATALOG,
+  buildQuote,
+  buildSelectedAddons,
+  formatAddonPrice,
+  isCatalogAddonSelected,
+  isCustomAddonSelected,
+  suggestAddons,
+} from "@/lib/addons";
 import { saveAssessmentForReview } from "@/lib/assessments";
 import { intakeIsComplete } from "@/lib/draftStore";
 import { useDraft } from "@/lib/draftContext";
 import { buildChecklist, buildPathways, buildProposalSummary } from "@/lib/pathways";
 import { allDepartmentReadiness } from "@/lib/readiness";
 import { resolveDisplayTier, scoreAssessment } from "@/lib/scoring";
+import PreviousStatus from "./PreviousStatus";
 import ReadinessRadar from "./ReadinessRadar";
 import ui from "./ui.module.css";
 
@@ -22,6 +31,7 @@ export default function DashboardClient() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [customName, setCustomName] = useState("");
+  const [customPrice, setCustomPrice] = useState("");
   const [customError, setCustomError] = useState("");
 
   const scoring = useMemo(
@@ -29,7 +39,7 @@ export default function DashboardClient() {
       scoreAssessment({
         roles: draft.roles,
         departments: draft.departments,
-        aiExperience: draft.aiExperience,
+        departmentExperience: draft.departmentExperience || {},
       }),
     [draft],
   );
@@ -47,12 +57,13 @@ export default function DashboardClient() {
     () => buildSelectedAddons(draft, scoring.recommendedTier),
     [draft, scoring.recommendedTier],
   );
+  const quote = useMemo(() => buildQuote(displayTier, selectedAddons), [displayTier, selectedAddons]);
   const readiness = useMemo(() => allDepartmentReadiness(draft), [draft]);
   const selectedDept = readiness[deptIndex] || readiness[0];
   const checklist = useMemo(() => buildChecklist(draft, displayTier), [draft, displayTier]);
   const summary = useMemo(
-    () => buildProposalSummary(draft, scoring, displayTier, copy),
-    [draft, scoring, displayTier, copy],
+    () => buildProposalSummary(draft, scoring, displayTier, copy, quote),
+    [draft, scoring, displayTier, copy, quote],
   );
 
   function persist(next) {
@@ -68,8 +79,13 @@ export default function DashboardClient() {
 
   function addCustomAddon() {
     const name = customName.trim();
+    const price = Number(String(customPrice).replace(/[$,\s]/g, ""));
     if (!name) {
       setCustomError("Type an add-on name first.");
+      return;
+    }
+    if (!Number.isInteger(price) || price <= 0) {
+      setCustomError("Enter a price in whole dollars.");
       return;
     }
     const duplicate = (draft.customAddons || []).some((item) => item.name.trim().toLowerCase() === name.toLowerCase());
@@ -80,9 +96,10 @@ export default function DashboardClient() {
     setCustomError("");
     persist({
       ...draft,
-      customAddons: [...(draft.customAddons || []), { id: `custom:${crypto.randomUUID()}`, name }],
+      customAddons: [...(draft.customAddons || []), { id: `custom:${crypto.randomUUID()}`, name, price }],
     });
     setCustomName("");
+    setCustomPrice("");
   }
 
   function removeCustomAddon(id) {
@@ -104,13 +121,14 @@ export default function DashboardClient() {
       setMessage(result.error);
       return;
     }
-    persist({ ...draft, status: "sent_for_review" });
+    persist({
+      ...draft,
+      status: "sent_for_review",
+      assessmentId: result.id || draft.assessmentId,
+    });
     setModalOpen(false);
-    setMessage(
-      result.warning
-        ? `Marked sent for review. ${result.warning}`
-        : "Marked sent for review. Nothing was billed or sent to the client.",
-    );
+    const saved = result.updated ? "Updated the existing review record." : "Marked sent for review.";
+    setMessage(result.warning ? `${saved} ${result.warning}` : `${saved} Nothing was billed or sent to the client.`);
     router.push("/history");
   }
 
@@ -123,7 +141,7 @@ export default function DashboardClient() {
       <div className={ui.card}>
         <div className={ui.body}>
           <p>No complete intake found. Start with discovery, then follow-up.</p>
-          <button type="button" className={ui.btn} style={{ marginTop: "1rem" }} onClick={() => router.push("/")}>
+          <button type="button" className={ui.btn} style={{ marginTop: "1rem" }} onClick={() => router.push("/intake")}>
             Go to intake
           </button>
         </div>
@@ -142,6 +160,7 @@ export default function DashboardClient() {
         </button>
       </div>
 
+      <PreviousStatus draft={draft} />
       {message ? <div className={ui.callout}>{message}</div> : null}
 
       {tab === "client" ? (
@@ -157,13 +176,31 @@ export default function DashboardClient() {
                   {draft.premiumOverride ? " · Premium override on" : ""}
                 </p>
               </div>
-              <span className={ui.badge}>{copy.price}</span>
+              <span className={ui.badge}>{quote.totalLabel}</span>
             </div>
             <div className={ui.body}>
               <p>{copy.tagline}</p>
               <p className={ui.hint} style={{ marginTop: "0.4rem" }}>
                 {copy.duration}
               </p>
+              <div style={{ marginTop: "1rem", display: "grid", gap: "0.45rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+                  <span>
+                    {copy.name} base{draft.premiumOverride ? " · Premium override" : ""}
+                  </span>
+                  <span>{quote.baseLabel}</span>
+                </div>
+                {quote.lines.map((line) => (
+                  <div key={line.id} style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+                    <span>{line.name}</span>
+                    <span>+ {formatAddonPrice(line.price)}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+                  <strong>Total</strong>
+                  <strong>{quote.totalLabel}</strong>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -257,8 +294,8 @@ export default function DashboardClient() {
             </div>
             <div className={ui.body}>
               <p className={ui.hint} style={{ marginBottom: "0.9rem" }}>
-                Suggested items start checked. Turn any add-on on or off, or add one that is not on the list. Send For
-                Review saves this selection.
+                Suggested items start checked. Each selected add-on is added to the tier price. Premium replaces the tier
+                range and still adds these prices. Send For Review saves the same total.
               </p>
               {orderedCatalog.map((addon) => {
                 const suggested = suggestedIds.has(addon.id);
@@ -272,6 +309,7 @@ export default function DashboardClient() {
                     />
                     <span>
                       <strong>{addon.name}</strong>{" "}
+                      <span className={ui.badge}>{formatAddonPrice(addon.price)}</span>{" "}
                       {suggested ? <span className={ui.badge}>Suggested</span> : null}
                       <div className={ui.hint}>{addon.detail}</div>
                       {suggested ? <div className={ui.hint}>{addon.why}</div> : null}
@@ -288,7 +326,8 @@ export default function DashboardClient() {
                     style={{ marginTop: "0.2rem" }}
                   />
                   <span style={{ flex: 1 }}>
-                    <strong>{addon.name}</strong> <span className={ui.badge}>Custom</span>
+                    <strong>{addon.name}</strong> <span className={ui.badge}>{formatAddonPrice(addon.price)}</span>{" "}
+                    <span className={ui.badge}>Custom</span>
                     <div className={ui.hint}>Added for this client.</div>
                   </span>
                   <button type="button" className={ui.btnSecondary} onClick={() => removeCustomAddon(addon.id)}>
@@ -313,6 +352,21 @@ export default function DashboardClient() {
                       }
                     }}
                     placeholder="On-site kickoff workshop"
+                  />
+                  <input
+                    className={ui.input}
+                    value={customPrice}
+                    onChange={(event) => setCustomPrice(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addCustomAddon();
+                      }
+                    }}
+                    inputMode="numeric"
+                    placeholder="Price"
+                    aria-label="Custom add-on price"
+                    style={{ maxWidth: "8rem" }}
                   />
                   <button type="button" className={ui.btnSecondary} onClick={addCustomAddon}>
                     Add
@@ -452,6 +506,14 @@ export default function DashboardClient() {
               <p>
                 <strong>Roles:</strong> {draft.roles.length}
               </p>
+              <p>
+                <strong>Quoted total:</strong> {quote.totalLabel}
+              </p>
+              {quote.lines.map((line) => (
+                <p key={line.id}>
+                  {line.name}: + {formatAddonPrice(line.price)}
+                </p>
+              ))}
               <p>
                 <strong>Add-ons:</strong>{" "}
                 {selectedAddons.length ? selectedAddons.map((item) => item.name).join(", ") : "None selected"}
