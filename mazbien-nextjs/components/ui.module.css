@@ -181,6 +181,47 @@
   cursor: not-allowed;
 }
 
+.googleBtn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 0.65rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.googleBtn:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.googleBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.authDivider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.95rem 0 0.15rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.authDivider::before,
+.authDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--hairline);
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

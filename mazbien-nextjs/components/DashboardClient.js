@@ -1,18 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TIER_COPY } from "@/lib/catalog";
 import {
-  ADDON_CATALOG,
   buildQuote,
   buildSelectedAddons,
   formatAddonPrice,
   isCatalogAddonSelected,
   isCustomAddonSelected,
-  suggestAddons,
+  suggestedIdsFor,
+  withCatalogPrices,
 } from "@/lib/addons";
-import { saveAssessmentForReview } from "@/lib/assessments";
+import { fetchAddonCatalog, saveAssessmentForReview } from "@/lib/assessments";
 import { intakeIsComplete } from "@/lib/draftStore";
 import { useDraft } from "@/lib/draftContext";
 import { buildChecklist, buildPathways, buildProposalSummary } from "@/lib/pathways";
@@ -33,6 +33,8 @@ export default function DashboardClient() {
   const [customName, setCustomName] = useState("");
   const [customPrice, setCustomPrice] = useState("");
   const [customError, setCustomError] = useState("");
+  const [catalog, setCatalog] = useState(null);
+  const [catalogError, setCatalogError] = useState("");
 
   const scoring = useMemo(
     () =>
@@ -46,17 +48,36 @@ export default function DashboardClient() {
   const displayTier = resolveDisplayTier(scoring.recommendedTier, draft.premiumOverride);
   const copy = TIER_COPY[displayTier];
   const pathways = useMemo(() => buildPathways(draft), [draft]);
-  const addons = useMemo(() => suggestAddons(draft, scoring.recommendedTier), [draft, scoring.recommendedTier]);
-  const suggestedIds = useMemo(() => new Set(addons.map((item) => item.id)), [addons]);
+  const suggestedIds = useMemo(
+    () => (catalog ? suggestedIdsFor(draft, scoring.recommendedTier, catalog) : new Set()),
+    [catalog, draft, scoring.recommendedTier],
+  );
   const orderedCatalog = useMemo(() => {
-    return [...ADDON_CATALOG].sort(
+    return [...(catalog || [])].sort(
       (a, b) => Number(suggestedIds.has(b.id)) - Number(suggestedIds.has(a.id)),
     );
-  }, [suggestedIds]);
+  }, [catalog, suggestedIds]);
   const selectedAddons = useMemo(
-    () => buildSelectedAddons(draft, scoring.recommendedTier),
-    [draft, scoring.recommendedTier],
+    () => (catalog ? buildSelectedAddons(draft, scoring.recommendedTier, catalog) : []),
+    [catalog, draft, scoring.recommendedTier],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAddonCatalog().then((result) => {
+      if (cancelled) return;
+      if (!result.ok) {
+        setCatalogError(result.error);
+        setCatalog([]);
+        return;
+      }
+      setCatalogError("");
+      setCatalog(withCatalogPrices(result.rows));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const quote = useMemo(() => buildQuote(displayTier, selectedAddons), [displayTier, selectedAddons]);
   const readiness = useMemo(() => allDepartmentReadiness(draft), [draft]);
   const selectedDept = readiness[deptIndex] || readiness[0];
@@ -297,6 +318,8 @@ export default function DashboardClient() {
                 Suggested items start checked. Each selected add-on is added to the tier price. Premium replaces the tier
                 range and still adds these prices. Send For Review saves the same total.
               </p>
+              {catalogError ? <p className={ui.hint}>{catalogError}</p> : null}
+              {catalog === null ? <p className={ui.hint}>Loading add-ons…</p> : null}
               {orderedCatalog.map((addon) => {
                 const suggested = suggestedIds.has(addon.id);
                 return (
@@ -408,7 +431,7 @@ export default function DashboardClient() {
             </div>
             <div className={ui.footer}>
               <span className={ui.hint}>Workflow ends here. No billing. No client send.</span>
-              <button type="button" className={ui.btnBrass} onClick={() => setModalOpen(true)}>
+              <button type="button" className={ui.btnBrass} disabled={catalog === null} onClick={() => setModalOpen(true)}>
                 Send For Review
               </button>
             </div>
@@ -475,7 +498,7 @@ export default function DashboardClient() {
               <button type="button" className={ui.btnSecondary} onClick={() => router.push("/followup")}>
                 Re-edit follow-up
               </button>
-              <button type="button" className={ui.btnBrass} onClick={() => setModalOpen(true)}>
+              <button type="button" className={ui.btnBrass} disabled={catalog === null} onClick={() => setModalOpen(true)}>
                 Send For Review
               </button>
             </div>

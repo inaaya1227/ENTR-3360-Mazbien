@@ -69,6 +69,31 @@ export function suggestAddons(draft, recommendedTier) {
   return ids.map((id) => ADDON_BY_ID[id]);
 }
 
+const CATALOG_BY_NAME = new Map(ADDON_CATALOG.map((item) => [item.name, item]));
+
+export function withCatalogPrices(rows) {
+  return (rows || []).map((row) => {
+    const known = CATALOG_BY_NAME.get(row.name);
+    return {
+      id: row.id,
+      slug: known?.id,
+      name: row.name,
+      detail: row.description || known?.detail || "",
+      why: known?.why || "",
+      price: Number(row.price),
+    };
+  });
+}
+
+export function suggestedIdsFor(draft, recommendedTier, catalog = ADDON_CATALOG) {
+  const suggestedSlugs = new Set(
+    suggestAddons(draft, recommendedTier)
+      .filter(Boolean)
+      .map((item) => item.id),
+  );
+  return new Set(catalog.filter((item) => suggestedSlugs.has(item.slug || item.id)).map((item) => item.id));
+}
+
 export function isCatalogAddonSelected(draft, addonId, suggestedIds) {
   const override = draft.addonOverrides?.[addonId];
   if (typeof override === "boolean") return override;
@@ -79,12 +104,12 @@ export function isCustomAddonSelected(draft, addonId) {
   return draft.addonOverrides?.[addonId] !== false;
 }
 
-export function buildSelectedAddons(draft, recommendedTier) {
-  const suggestedIds = new Set(suggestAddons(draft, recommendedTier).map((item) => item.id));
-  const catalog = ADDON_CATALOG.filter((item) => isCatalogAddonSelected(draft, item.id, suggestedIds)).map((item) => ({
+export function buildSelectedAddons(draft, recommendedTier, catalog = ADDON_CATALOG) {
+  const suggestedIds = suggestedIdsFor(draft, recommendedTier, catalog);
+  const selectedCatalog = catalog.filter((item) => isCatalogAddonSelected(draft, item.id, suggestedIds)).map((item) => ({
     id: item.id,
     name: item.name,
-    price: item.price,
+    price: Number(item.price) || 0,
     custom: false,
   }));
   const custom = (draft.customAddons || [])
@@ -95,7 +120,7 @@ export function buildSelectedAddons(draft, recommendedTier) {
       price: Number(item.price) || 0,
       custom: true,
     }));
-  return [...catalog, ...custom];
+  return [...selectedCatalog, ...custom];
 }
 
 const money = new Intl.NumberFormat("en-US", {

@@ -1,4 +1,4 @@
-import { ADDON_CATALOG, buildQuote, buildSelectedAddons } from "./addons";
+import { buildQuote, buildSelectedAddons, withCatalogPrices } from "./addons";
 import { TOOLS, TIER_COPY } from "./catalog";
 import { emptyDraft, upsertLocalHistory } from "./draftStore";
 import { generateFollowups } from "./followups";
@@ -15,8 +15,47 @@ export function statusLabel(status) {
   return STATUS_LABELS[status] || status;
 }
 
+export async function fetchAddonCatalog() {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { ok: false, rows: [], error: "Supabase is not configured, so add-ons cannot be loaded." };
+  }
+  const { data, error } = await supabase
+    .from("addons")
+    .select("id, name, description, price")
+    .eq("active", true)
+    .order("name");
+  if (error) return { ok: false, rows: [], error: error.message };
+  return { ok: true, rows: data || [] };
+}
+
+function addonInsertRows(assessmentId, selectedAddons) {
+  return selectedAddons.map((item) => ({
+    assessment_id: assessmentId,
+    addon_id: item.custom ? null : item.id,
+    custom_name: item.custom ? item.name : null,
+    price_at_selection: Number(item.price) || 0,
+  }));
+}
+
 export async function saveAssessmentForReview({ draft, scoring, displayTier, pathways }) {
-  const selectedAddons = buildSelectedAddons(draft, scoring.recommendedTier);
+  const supabase = getSupabaseClient();
+  let userId = null;
+  if (supabase) {
+    const { data: userResult, error: userError } = await supabase.auth.getUser();
+    if (userError || !userResult?.user) {
+      return { ok: false, error: "Sign in before sending for review." };
+    }
+    userId = userResult.user.id;
+  }
+
+  let catalog;
+  if (supabase) {
+    const catalogResult = await fetchAddonCatalog();
+    if (!catalogResult.ok) return { ok: false, error: catalogResult.error };
+    catalog = withCatalogPrices(catalogResult.rows);
+  }
+  const selectedAddons = buildSelectedAddons(draft, scoring.recommendedTier, catalog);
   const quote = buildQuote(displayTier, selectedAddons);
   const payload = {
     company_name: draft.companyName,
@@ -32,7 +71,6 @@ export async function saveAssessmentForReview({ draft, scoring, displayTier, pat
     status: "sent_for_review",
     desired_outcomes: draft.desiredOutcomes || "",
     consultant_notes: draft.consultantNotes || "",
-    selected_addons: selectedAddons,
   };
   if (draft.assessmentId) payload.previous_status = draft.previousStatus || null;
 
@@ -43,14 +81,9 @@ export async function saveAssessmentForReview({ draft, scoring, displayTier, pat
     source: "local",
   };
 
-  const supabase = getSupabaseClient();
-  if (supabase) {
-    const { data: userResult, error: userError } = await supabase.auth.getUser();
-    if (userError || !userResult?.user) {
-      return { ok: false, error: "Sign in before sending for review." };
-    }
-    if (!draft.assessmentId) payload.consultant_id = userResult.user.id;
-    localRecord.consultant_id = userResult.user.id;
+  if (userId) {
+    if (!draft.assessmentId) payload.consultant_id = userId;
+    localRecord.consultant_id = userId;
   }
 
   if (!supabase) {
@@ -82,19 +115,43 @@ export async function saveAssessmentForReview({ draft, scoring, displayTier, pat
   }
 
   const assessmentId = saved.data.id;
-  const childError = await replaceChildRows(supabase, assessmentId, pathways, draft.followupAnswers || [], Boolean(draft.assessmentId));
+  const childError = await replaceChildRows(
+    supabase,
+    assessmentId,
+    pathways,
+    draft.followupAnswers || [],
+    Boolean(draft.assessmentId),
+    addonInsertRows(assessmentId, selectedAddons),
+  );
   if (childError) return { ok: false, error: childError };
 
   upsertLocalHistory({ ...localRecord, id: assessmentId, source: "supabase" });
   return { ok: true, source: "supabase", updated: Boolean(draft.assessmentId), id: assessmentId };
 }
 
-async function replaceChildRows(supabase, assessmentId, pathways, followupAnswers, replacing) {
+async function replaceChildRows(supabase, assessmentId, pathways, followupAnswers, replacing, addonRows = []) {
+  let previousRoleIds = [];
+  let previousFollowupIds = [];
+  let previousAddonIds = [];
   if (replacing) {
-    const { error: roleDeleteError } = await supabase.from("roles").delete().eq("assessment_id", assessmentId);
-    if (roleDeleteError) return roleDeleteError.message;
-    const { error: followDeleteError } = await supabase.from("followup_answers").delete().eq("assessment_id", assessmentId);
-    if (followDeleteError) return followDeleteError.message;
+    const { data: existingRoles, error: roleReadError } = await supabase
+      .from("roles")
+      .select("id")
+      .eq("assessment_id", assessmentId);
+    if (roleReadError) return roleReadError.message;
+    const { data: existingFollowups, error: followReadError } = await supabase
+      .from("followup_answers")
+      .select("id")
+      .eq("assessment_id", assessmentId);
+    if (followReadError) return followReadError.message;
+    const { data: existingAddons, error: addonReadError } = await supabase
+      .from("assessment_addons")
+      .select("id")
+      .eq("assessment_id", assessmentId);
+    if (addonReadError) return addonReadError.message;
+    previousRoleIds = (existingRoles || []).map((row) => row.id);
+    previousFollowupIds = (existingFollowups || []).map((row) => row.id);
+    previousAddonIds = (existingAddons || []).map((row) => row.id);
   }
 
   const roleRows = pathways.map((pathway) => ({
@@ -118,6 +175,24 @@ async function replaceChildRows(supabase, assessmentId, pathways, followupAnswer
     }));
   if (followupRows.length) {
     const { error } = await supabase.from("followup_answers").insert(followupRows);
+    if (error) return error.message;
+  }
+
+  if (addonRows.length) {
+    const { error } = await supabase.from("assessment_addons").insert(addonRows);
+    if (error) return error.message;
+  }
+
+  if (previousRoleIds.length) {
+    const { error } = await supabase.from("roles").delete().in("id", previousRoleIds);
+    if (error) return error.message;
+  }
+  if (previousFollowupIds.length) {
+    const { error } = await supabase.from("followup_answers").delete().in("id", previousFollowupIds);
+    if (error) return error.message;
+  }
+  if (previousAddonIds.length) {
+    const { error } = await supabase.from("assessment_addons").delete().in("id", previousAddonIds);
     if (error) return error.message;
   }
 
@@ -159,7 +234,7 @@ function restoreFollowupAnswers(draft, savedRows) {
   return followupAnswers;
 }
 
-export function draftFromAssessment(row) {
+export function draftFromAssessment(row, catalog = []) {
   const draft = emptyDraft();
   const departments = (Array.isArray(row.departments) ? row.departments : []).map(renameDepartment);
   const experience = {};
@@ -173,17 +248,16 @@ export function draftFromAssessment(row) {
   }
   const knownTools = new Set(TOOLS);
   const tools = Array.isArray(row.tools) ? row.tools.filter(Boolean) : [];
-  const selected = Array.isArray(row.selected_addons) ? row.selected_addons : [];
-  const catalogIds = new Set(ADDON_CATALOG.map((addon) => addon.id));
-  const selectedIds = new Set(selected.filter((item) => item?.id && catalogIds.has(item.id)).map((item) => item.id));
+  const links = Array.isArray(row.assessment_addons) ? row.assessment_addons : [];
+  const selectedIds = new Set(links.map((item) => item.addon_id).filter(Boolean));
   const addonOverrides = {};
-  for (const addon of ADDON_CATALOG) addonOverrides[addon.id] = selectedIds.has(addon.id);
-  const customAddons = selected
-    .filter((item) => item?.id && item?.name && !catalogIds.has(item.id))
+  for (const addon of catalog) addonOverrides[addon.id] = selectedIds.has(addon.id);
+  const customAddons = links
+    .filter((item) => !item.addon_id && String(item.custom_name || "").trim())
     .map((item) => ({
-      id: item.id,
-      name: item.name,
-      price: Number(item.price) || 0,
+      id: `custom:${crypto.randomUUID()}`,
+      name: String(item.custom_name).trim(),
+      price: Number(item.price_at_selection) || 0,
     }));
   const roles = (row.roles || []).map((role) => ({
     id: role.id || crypto.randomUUID(),
@@ -220,13 +294,19 @@ export async function fetchAssessmentForEdit(id) {
   if (!supabase) {
     return { ok: false, error: "Supabase is not configured, so this assessment cannot be opened." };
   }
-  const { data, error } = await supabase
-    .from("assessments")
-    .select("*, roles(id, name, department), followup_answers(question_text, answer_text)")
-    .eq("id", id)
-    .single();
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, draft: draftFromAssessment(data) };
+  const [catalogResult, assessmentResult] = await Promise.all([
+    fetchAddonCatalog(),
+    supabase
+      .from("assessments")
+      .select(
+        "*, roles(id, name, department), followup_answers(question_text, answer_text), assessment_addons(addon_id, custom_name, price_at_selection)",
+      )
+      .eq("id", id)
+      .single(),
+  ]);
+  if (!catalogResult.ok) return { ok: false, error: catalogResult.error };
+  if (assessmentResult.error) return { ok: false, error: assessmentResult.error.message };
+  return { ok: true, draft: draftFromAssessment(assessmentResult.data, withCatalogPrices(catalogResult.rows)) };
 }
 
 export async function fetchAssessmentHistory() {
