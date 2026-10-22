@@ -1,6 +1,30 @@
 import { Suspense } from "react";
+import { createLucideIcon, X } from "lucide-react";
 import AuthScreen from "@/components/AuthScreen";
 import styles from "./page.module.css";
+
+const Instagram = createLucideIcon("instagram", [
+  ["rect", { width: "20", height: "20", x: "2", y: "2", rx: "5", ry: "5", key: "ig-frame" }],
+  ["path", { d: "M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z", key: "ig-lens" }],
+  ["line", { x1: "17.5", x2: "17.51", y1: "6.5", y2: "6.5", key: "ig-dot" }],
+]);
+
+const Linkedin = createLucideIcon("linkedin", [
+  ["path", { d: "M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z", key: "li-body" }],
+  ["rect", { width: "4", height: "12", x: "2", y: "9", key: "li-bar" }],
+  ["circle", { cx: "4", cy: "4", r: "2", key: "li-dot" }],
+]);
+
+const Facebook = createLucideIcon("facebook", [
+  ["path", { d: "M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z", key: "fb" }],
+]);
+
+const SOCIALS = [
+  { label: "Instagram", icon: Instagram },
+  { label: "LinkedIn", icon: Linkedin },
+  { label: "X", icon: X },
+  { label: "Facebook", icon: Facebook },
+];
 
 const STEPS = [
   {
@@ -60,8 +84,17 @@ export default function HomePage() {
       </section>
 
       <footer className={styles.footer}>
-        <p>Mazbien · IntelliHub Inc.</p>
-        <p>AI training needs assessment</p>
+        <div className={styles.socials}>
+          {SOCIALS.map(({ label, icon: Icon }) => (
+            <a key={label} href="#" aria-label={label}>
+              <Icon size={18} aria-hidden="true" />
+            </a>
+          ))}
+        </div>
+        <div className={styles.footerLine}>
+          <p>Mazbien · IntelliHub Inc.</p>
+          <p>AI training needs assessment</p>
+        </div>
       </footer>
     </div>
   );
