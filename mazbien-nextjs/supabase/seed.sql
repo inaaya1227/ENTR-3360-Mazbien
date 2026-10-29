@@ -6,25 +6,30 @@
 -- 2. The consultant id is set in the insert into seed_params.
 --
 -- WIPE (deletes every assessment owned by that consultant, including any you
--- created in the app; roles and follow-up answers cascade):
+-- created in the app; roles, follow-up answers, and assessment add-ons cascade):
 --   delete from public.assessments
---   where consultant_id = 'b86cda46-f1b1-4487-9b8d-5d73db494aef';
+--   where consultant_id = '31f9fb5d-316c-44d2-adab-2a6b86496fe2';
 -- Then run this whole script again.
 --
 -- HOW THE ROWS WERE BUILT
 -- 40 assessments. Role counts vary by company and sum to 160 (4 on average).
 -- Each assessment gets 4 follow-up answers (160).
--- score = role_count + department_count + AI weight
---   None = 2, Some = 1, Advanced = 0
---   score > 8 → gold, score 5–8 → silver, score < 5 → bronze
--- The script calculates score and tier from those inputs and stops if a row disagrees.
+-- score = least(role count, 10) * 6 + least(department count, 5) * 8 + experience weight
+--   None = 24, Some = 12, Advanced = 4
+--   score >= 72 → gold, score >= 42 → silver, otherwise bronze
+-- Every department on a row shares that experience. It is stored per department.
+-- quote_total is the tier price range plus addons.price for each selected add-on.
+-- Each selection is one assessment_addons row. price_at_selection is addons.price.
+-- selected_addons is left at its default empty list. Run supabase/schema_addons.sql first.
+-- previous_status is empty on drafts, draft on in-review rows, and in_review on sent rows.
+-- The script calculates score, tier, and quote from those inputs and stops if a row disagrees.
 -- created_at steps back 4 days 16 hours from 2026-10-21, covering about six months.
 -- Status is sent_for_review on 32 rows, draft on 4, in_review on 4.
 
 drop table if exists seed_params;
 create temp table seed_params (consultant_id uuid);
 insert into seed_params (consultant_id)
-values ('b86cda46-f1b1-4487-9b8d-5d73db494aef');
+values ('31f9fb5d-316c-44d2-adab-2a6b86496fe2');
 
 do $seed$
 declare
@@ -85,7 +90,7 @@ declare
   all_depts text[] := array[
     'Sales',
     'Customer Service',
-    'Operations',
+    'Administration/OPS',
     'Finance',
     'Human Resources',
     'Marketing',
@@ -124,7 +129,7 @@ declare
   titles jsonb := jsonb_build_object(
     'Sales', jsonb_build_array('Account Executive', 'Sales Development Representative', 'Proposal Specialist', 'Sales Operations Analyst', 'Customer Success Manager', 'Renewal Coordinator'),
     'Customer Service', jsonb_build_array('Customer Support Team Lead', 'Support Specialist', 'Knowledge Base Editor', 'Quality Assurance Analyst', 'Escalation Coordinator', 'Chat Support Agent'),
-    'Operations', jsonb_build_array('Operations Manager', 'Process Analyst', 'Operations Coordinator', 'Workforce Scheduler', 'Continuous Improvement Lead', 'Service Desk Coordinator'),
+    'Administration/OPS', jsonb_build_array('Operations Manager', 'Process Analyst', 'Operations Coordinator', 'Workforce Scheduler', 'Continuous Improvement Lead', 'Service Desk Coordinator'),
     'Finance', jsonb_build_array('Accounts Payable Clerk', 'Accounts Receivable Specialist', 'Financial Analyst', 'Staff Accountant', 'Payroll Administrator', 'Billing Coordinator'),
     'Human Resources', jsonb_build_array('Recruitment Coordinator', 'HR Business Partner', 'Onboarding Specialist', 'HR Generalist', 'Talent Sourcer', 'Employee Relations Advisor'),
     'Marketing', jsonb_build_array('Content Marketing Manager', 'Campaign Coordinator', 'Brand Specialist', 'Marketing Operations Analyst', 'Social Media Coordinator', 'Demand Generation Specialist'),
@@ -136,8 +141,16 @@ declare
   role_count int;
   dept_count int;
   experience text;
-  weight int;
   score int;
+  dept_experience jsonb;
+  addon_names text[];
+  addon_total numeric;
+  addon_found int;
+  addon_expected int := 0;
+  base_low int;
+  base_high int;
+  quote_label text;
+  previous text;
   tier text;
   dept_list text[];
   dept_name text;
@@ -182,20 +195,19 @@ begin
     role_count := role_counts[i];
     dept_count := dept_counts[i];
     experience := experiences[i];
-    weight := case experience
-      when 'None' then 2
-      when 'Some' then 1
-      when 'Advanced' then 0
+    score := least(role_count, 10) * 6 + least(dept_count, 5) * 8 + case experience
+      when 'None' then 24
+      when 'Some' then 12
+      when 'Advanced' then 4
       else null
     end;
-    if weight is null then
+    if score is null then
       raise exception 'Unknown AI experience % on row %', experience, i;
     end if;
 
-    score := role_count + dept_count + weight;
     tier := case
-      when score > 8 then 'gold'
-      when score >= 5 then 'silver'
+      when score >= 72 then 'gold'
+      when score >= 42 then 'silver'
       else 'bronze'
     end;
 
@@ -213,31 +225,86 @@ begin
       dept_list := dept_list || all_depts[(((i - 1) + (r - 1)) % array_length(all_depts, 1)) + 1];
     end loop;
 
+    select jsonb_object_agg(dept.value, experience)
+    into dept_experience
+    from unnest(dept_list) as dept(value);
+
+    addon_names := array[]::text[];
+    if experience = 'None' then
+      addon_names := addon_names || 'Change-management office hours';
+    end if;
+    if dept_count >= 3 or tier = 'gold' then
+      addon_names := addon_names || 'Department champion network';
+    end if;
+    if size_band in ('501-2000', '2000+') then
+      addon_names := addon_names || 'Train-the-trainer cascade';
+    end if;
+    if 'Engineering' = any(dept_list) or 'Legal & Compliance' = any(dept_list) then
+      addon_names := addon_names || 'AI governance & allowed-use lab';
+    end if;
+    if 'Customer Service' = any(dept_list) then
+      addon_names := addon_names || 'Deflection measurement pack';
+    end if;
+    if cardinality(addon_names) = 0 then
+      addon_names := array['90-day executive impact brief'];
+    end if;
+
+    select coalesce(sum(price), 0), count(*)
+    into addon_total, addon_found
+    from public.addons
+    where active
+      and name = any(addon_names);
+
+    if addon_found <> cardinality(addon_names) then
+      raise exception 'public.addons is missing a seed add-on. Run supabase/schema_addons.sql first.';
+    end if;
+    addon_expected := addon_expected + cardinality(addon_names);
+
+    base_low := case tier when 'bronze' then 12000 when 'silver' then 28000 else 54000 end;
+    base_high := case tier when 'bronze' then 18000 when 'silver' then 42000 else 78000 end;
+    quote_label := format(
+      '$%s – $%s',
+      trim(to_char(base_low + addon_total, 'FM999,999,999')),
+      trim(to_char(base_high + addon_total, 'FM999,999,999'))
+    );
+    previous := case status
+      when 'draft' then null
+      when 'in_review' then 'draft'
+      else 'in_review'
+    end;
+
     insert into public.assessments (
       company_name,
       industry,
       size,
       departments,
       ai_experience,
+      department_ai_experience,
       pain_points,
+      desired_outcomes,
+      consultant_notes,
       tools,
       tier,
       score,
+      quote_total,
       status,
+      previous_status,
       created_at,
-      consultant_id,
-      selected_addons
+      consultant_id
     ) values (
       company,
       industry,
       size_band,
       to_jsonb(dept_list),
       experience,
+      dept_experience,
       case experience
         when 'None' then 'Teams still do the busywork by hand and worry a draft will be wrong.'
         when 'Some' then 'A few people draft with an approved tool, then rewrite it themselves.'
         else 'Several teams already have habits, but the rules differ by department.'
       end || ' Industry context: ' || industry || '.',
+      company || ' wants one measurable drop in rewrite time within 90 days.',
+      'Confirm which ' || company || ' files can be used in a lab before week two.',
       jsonb_build_array(
         tools[((i - 1) % array_length(tools, 1)) + 1],
         tools[(i % array_length(tools, 1)) + 1],
@@ -245,20 +312,19 @@ begin
       ),
       tier,
       score,
+      quote_label,
       status,
+      previous,
       timestamptz '2026-10-21 15:00:00+00' - ((i - 1) * interval '4 days 16 hours'),
-      consultant,
-      case
-        when i % 3 = 0 then jsonb_build_array(
-          jsonb_build_object('id', 'seed-office-hours', 'name', 'Fictional office-hours block', 'custom', false)
-        )
-        when i % 3 = 1 then jsonb_build_array(
-          jsonb_build_object('id', 'custom:seed-lab', 'name', 'Fictional lab for ' || industry, 'custom', true)
-        )
-        else '[]'::jsonb
-      end
+      consultant
     )
     returning id into assessment_id;
+
+    insert into public.assessment_addons (assessment_id, addon_id, custom_name, price_at_selection)
+    select assessment_id, id, null, price
+    from public.addons
+    where active
+      and name = any(addon_names);
 
     inserted := inserted || assessment_id;
     assessment_total := assessment_total + 1;
@@ -344,33 +410,65 @@ begin
   end if;
 
   if exists (
+    with scored as (
+      select
+        a.id,
+        a.score,
+        a.tier,
+        a.quote_total,
+        a.desired_outcomes,
+        a.department_ai_experience,
+        a.selected_addons,
+        least((select count(*) from public.roles r where r.assessment_id = a.id), 10) * 6
+          + least(jsonb_array_length(a.departments), 5) * 8
+          + case a.ai_experience when 'None' then 24 when 'Some' then 12 when 'Advanced' then 4 end
+          as expected
+      from public.assessments a
+      where a.id = any(inserted)
+    )
     select 1
-    from public.assessments a
-    where a.id = any(inserted)
+    from scored
+    where score is distinct from expected
+      or tier is distinct from case
+        when expected >= 72 then 'gold'
+        when expected >= 42 then 'silver'
+        else 'bronze'
+      end
+      or quote_total is distinct from format(
+        '$%s – $%s',
+        trim(to_char(
+          case tier when 'bronze' then 12000 when 'silver' then 28000 else 54000 end
+          + coalesce((select sum(aa.price_at_selection) from public.assessment_addons aa where aa.assessment_id = scored.id), 0),
+          'FM999,999,999'
+        )),
+        trim(to_char(
+          case tier when 'bronze' then 18000 when 'silver' then 42000 else 78000 end
+          + coalesce((select sum(aa.price_at_selection) from public.assessment_addons aa where aa.assessment_id = scored.id), 0),
+          'FM999,999,999'
+        ))
+      )
+      or desired_outcomes is null
+      or department_ai_experience = '{}'::jsonb
+      or selected_addons is distinct from '[]'::jsonb
+  ) then
+    raise exception 'Stored score, tier, or quote does not match the seed rule.';
+  end if;
+
+  if (select count(*) from public.assessment_addons where assessment_id = any(inserted)) <> addon_expected then
+    raise exception 'Expected % assessment add-on rows.', addon_expected;
+  end if;
+
+  if exists (
+    select 1
+    from public.assessment_addons aa
+    join public.addons catalog on catalog.id = aa.addon_id
+    where aa.assessment_id = any(inserted)
       and (
-        a.score is distinct from (
-          (select count(*) from public.roles r where r.assessment_id = a.id)
-          + jsonb_array_length(a.departments)
-          + case a.ai_experience when 'None' then 2 when 'Some' then 1 when 'Advanced' then 0 end
-        )
-        or a.tier is distinct from (
-          case
-            when (
-              (select count(*) from public.roles r where r.assessment_id = a.id)
-              + jsonb_array_length(a.departments)
-              + case a.ai_experience when 'None' then 2 when 'Some' then 1 when 'Advanced' then 0 end
-            ) > 8 then 'gold'
-            when (
-              (select count(*) from public.roles r where r.assessment_id = a.id)
-              + jsonb_array_length(a.departments)
-              + case a.ai_experience when 'None' then 2 when 'Some' then 1 when 'Advanced' then 0 end
-            ) >= 5 then 'silver'
-            else 'bronze'
-          end
-        )
+        aa.custom_name is not null
+        or aa.price_at_selection is distinct from catalog.price
       )
   ) then
-    raise exception 'Stored score or tier does not match the seed rule.';
+    raise exception 'An assessment add-on does not match addons.price.';
   end if;
 end
 $seed$;
@@ -384,6 +482,7 @@ select
   count(*) filter (where a.tier = 'gold') as gold,
   count(*) filter (where a.status = 'sent_for_review') as sent_for_review,
   (select count(*) from public.roles r join public.assessments owned on owned.id = r.assessment_id join seed_params sp on sp.consultant_id = owned.consultant_id) as roles_for_consultant,
+  (select count(*) from public.assessment_addons aa join public.assessments owned on owned.id = aa.assessment_id join seed_params sp on sp.consultant_id = owned.consultant_id) as assessment_addons,
   min(a.created_at) as oldest,
   max(a.created_at) as newest
 from public.assessments a
