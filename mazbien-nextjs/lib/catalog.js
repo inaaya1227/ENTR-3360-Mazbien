@@ -20,7 +20,7 @@ export const ORG_SIZES = [
 export const DEPARTMENTS = [
   "Sales",
   "Customer Service",
-  "Operations",
+  "Administration/OPS",
   "Finance",
   "Human Resources",
   "Marketing",
@@ -32,7 +32,7 @@ export const DEPARTMENTS = [
 export const SUGGESTED_ROLES = {
   Sales: ["Account Executive", "Sales Operations Analyst", "SDR / BDR"],
   "Customer Service": ["Support Specialist", "Team Lead", "QA / Knowledge Manager"],
-  Operations: ["Operations Manager", "Process Analyst", "Coordinator"],
+  "Administration/OPS": ["Operations Manager", "Process Analyst", "Coordinator"],
   Finance: ["Financial Analyst", "Controller", "AP / AR Specialist"],
   "Human Resources": ["HR Business Partner", "Recruiter", "People Ops"],
   Marketing: ["Content Manager", "Demand Gen", "Brand Specialist"],
@@ -63,6 +63,8 @@ export const TIER_COPY = {
     name: "Bronze",
     title: "Foundational Sprint",
     tagline: "Focused prompt foundations and one-department workflow labs.",
+    low: 12000,
+    high: 18000,
     price: "$12,000 – $18,000",
     duration: "3–4 weeks • 16–24 hours",
   },
@@ -70,6 +72,8 @@ export const TIER_COPY = {
     name: "Silver",
     title: "Operational Acceleration",
     tagline: "Cross-team pathways, champions, and measurable adoption checkpoints.",
+    low: 28000,
+    high: 42000,
     price: "$28,000 – $42,000",
     duration: "6–8 weeks • 32–48 hours",
   },
@@ -77,6 +81,8 @@ export const TIER_COPY = {
     name: "Gold",
     title: "Enterprise Transformation",
     tagline: "Multi-department rollout with governance, labs, and executive briefing.",
+    low: 54000,
+    high: 78000,
     price: "$54,000 – $78,000",
     duration: "8–10 weeks • 56–72 hours",
   },
@@ -97,5 +103,4 @@ export const RADAR_AXES = [
   "Change Readiness",
 ];
 
-export const MAX_DEPARTMENTS = 5;
 export const MAX_ROLES = 10;

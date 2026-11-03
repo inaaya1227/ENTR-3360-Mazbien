@@ -8,9 +8,11 @@ import { saveAssessmentForReview } from "@/lib/assessments";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import { intakeIsComplete } from "@/lib/draftStore";
 import { useDraft } from "@/lib/draftContext";
+import { getSupabaseClient } from "@/lib/supabaseClient";
 import { buildChecklist, buildPathways, buildProposalSummary } from "@/lib/pathways";
 import { allDepartmentReadiness } from "@/lib/readiness";
 import { resolveDisplayTier, scoreAssessment } from "@/lib/scoring";
+import PreviousStatus from "./PreviousStatus";
 import ReadinessRadar from "./ReadinessRadar";
 import ui from "./ui.module.css";
 
@@ -23,40 +25,66 @@ export default function DashboardClient() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [customName, setCustomName] = useState("");
+  const [customPrice, setCustomPrice] = useState("");
   const [customError, setCustomError] = useState("");
-  const [depositing, setDepositing] = useState(false);
-  const [depositError, setDepositError] = useState("");
-  const [payment, setPayment] = useState(null);
+  const [catalog, setCatalog] = useState(null);
+  const [catalogError, setCatalogError] = useState("");
+  const [aiDraft, setAiDraft] = useState(null);
+  const [aiError, setAiError] = useState("");
+  const [drafting, setDrafting] = useState(false);
+  const [summaryDraft, setSummaryDraft] = useState("");
+  const [summaryError, setSummaryError] = useState("");
+  const [summarizing, setSummarizing] = useState(false);
 
   const scoring = useMemo(
     () =>
       scoreAssessment({
         roles: draft.roles,
         departments: draft.departments,
-        aiExperience: draft.aiExperience,
+        departmentExperience: draft.departmentExperience || {},
       }),
     [draft],
   );
   const displayTier = resolveDisplayTier(scoring.recommendedTier, draft.premiumOverride);
   const copy = TIER_COPY[displayTier];
   const pathways = useMemo(() => buildPathways(draft), [draft]);
-  const addons = useMemo(() => suggestAddons(draft, scoring.recommendedTier), [draft, scoring.recommendedTier]);
-  const suggestedIds = useMemo(() => new Set(addons.map((item) => item.id)), [addons]);
+  const suggestedIds = useMemo(
+    () => (catalog ? suggestedIdsFor(draft, scoring.recommendedTier, catalog) : new Set()),
+    [catalog, draft, scoring.recommendedTier],
+  );
   const orderedCatalog = useMemo(() => {
-    return [...ADDON_CATALOG].sort(
+    return [...(catalog || [])].sort(
       (a, b) => Number(suggestedIds.has(b.id)) - Number(suggestedIds.has(a.id)),
     );
-  }, [suggestedIds]);
+  }, [catalog, suggestedIds]);
   const selectedAddons = useMemo(
-    () => buildSelectedAddons(draft, scoring.recommendedTier),
-    [draft, scoring.recommendedTier],
+    () => (catalog ? buildSelectedAddons(draft, scoring.recommendedTier, catalog) : []),
+    [catalog, draft, scoring.recommendedTier],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAddonCatalog().then((result) => {
+      if (cancelled) return;
+      if (!result.ok) {
+        setCatalogError(result.error);
+        setCatalog([]);
+        return;
+      }
+      setCatalogError("");
+      setCatalog(withCatalogPrices(result.rows));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const quote = useMemo(() => buildQuote(displayTier, selectedAddons), [displayTier, selectedAddons]);
   const readiness = useMemo(() => allDepartmentReadiness(draft), [draft]);
   const selectedDept = readiness[deptIndex] || readiness[0];
   const checklist = useMemo(() => buildChecklist(draft, displayTier), [draft, displayTier]);
   const summary = useMemo(
-    () => buildProposalSummary(draft, scoring, displayTier, copy),
-    [draft, scoring, displayTier, copy],
+    () => buildProposalSummary(draft, scoring, displayTier, copy, quote),
+    [draft, scoring, displayTier, copy, quote],
   );
 
   useEffect(() => {
@@ -94,8 +122,13 @@ export default function DashboardClient() {
 
   function addCustomAddon() {
     const name = customName.trim();
+    const price = Number(String(customPrice).replace(/[$,\s]/g, ""));
     if (!name) {
       setCustomError("Type an add-on name first.");
+      return;
+    }
+    if (!Number.isInteger(price) || price <= 0) {
+      setCustomError("Enter a price in whole dollars.");
       return;
     }
     const duplicate = (draft.customAddons || []).some((item) => item.name.trim().toLowerCase() === name.toLowerCase());
@@ -106,9 +139,10 @@ export default function DashboardClient() {
     setCustomError("");
     persist({
       ...draft,
-      customAddons: [...(draft.customAddons || []), { id: `custom:${crypto.randomUUID()}`, name }],
+      customAddons: [...(draft.customAddons || []), { id: `custom:${crypto.randomUUID()}`, name, price }],
     });
     setCustomName("");
+    setCustomPrice("");
   }
 
   function removeCustomAddon(id) {
@@ -119,6 +153,96 @@ export default function DashboardClient() {
       addonOverrides: nextOverrides,
       customAddons: (draft.customAddons || []).filter((item) => item.id !== id),
     });
+  }
+
+  async function draftWithOpenRouter() {
+    setDrafting(true);
+    setAiError("");
+    const supabase = getSupabaseClient();
+    const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+    if (!session?.access_token) {
+      setDrafting(false);
+      setAiError("Sign in again before drafting a proposal.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/proposal", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          companyName: draft.companyName,
+          industry: draft.industry,
+          size: draft.size,
+          departments: draft.departments,
+          departmentExperience: draft.departmentExperience,
+          roles: (draft.roles || []).map((role) => ({ name: role.name, department: role.department })),
+          painPoints: draft.painPoints,
+          desiredOutcomes: draft.desiredOutcomes,
+          followupAnswers: (draft.followupAnswers || []).map((item) => ({
+            question: item.question,
+            answer: item.answer,
+          })),
+          tier: copy.name,
+          score: scoring.total,
+          quote: quote.totalLabel,
+          pathways: pathways.map((item) => ({
+            name: item.name,
+            department: item.department,
+            priority: item.priority,
+            modules: item.modules,
+          })),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAiError(data.error || "OpenRouter could not draft the proposal.");
+        return;
+      }
+      setAiDraft({ source: summary, text: data.summary || "" });
+    } catch {
+      setAiError("OpenRouter could not be reached.");
+    } finally {
+      setDrafting(false);
+    }
+  }
+
+  async function draftSummaryWithAi() {
+    setSummarizing(true);
+    setSummaryError("");
+    try {
+      if (!draft.assessmentId) {
+        setSummaryError("Send For Review first. The summary is drafted from the saved assessment.");
+        return;
+      }
+      const supabase = getSupabaseClient();
+      const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+      if (!session?.access_token) {
+        setSummaryError("Sign in again before drafting a summary.");
+        return;
+      }
+      const response = await fetch("/api/summary", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ assessmentId: draft.assessmentId }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setSummaryError(data.error || "OpenRouter could not draft the summary.");
+        return;
+      }
+      setSummaryDraft(data.summary || "");
+    } catch {
+      setSummaryError("OpenRouter could not be reached.");
+    } finally {
+      setSummarizing(false);
+    }
   }
 
   async function confirmSend() {
@@ -136,11 +260,8 @@ export default function DashboardClient() {
       assessmentId: result.id || draft.assessmentId,
     });
     setModalOpen(false);
-    setMessage(
-      result.warning
-        ? `Marked sent for review. ${result.warning}`
-        : "Marked sent for review. Nothing was billed or sent to the client.",
-    );
+    const saved = result.updated ? "Updated the existing review record." : "Marked sent for review.";
+    setMessage(result.warning ? `${saved} ${result.warning}` : `${saved} Nothing was billed or sent to the client.`);
     router.push("/history");
   }
 
@@ -184,7 +305,7 @@ export default function DashboardClient() {
       <div className={ui.card}>
         <div className={ui.body}>
           <p>No complete intake found. Start with discovery, then follow-up.</p>
-          <button type="button" className={ui.btn} style={{ marginTop: "1rem" }} onClick={() => router.push("/")}>
+          <button type="button" className={ui.btn} style={{ marginTop: "1rem" }} onClick={() => router.push("/intake")}>
             Go to intake
           </button>
         </div>
@@ -203,6 +324,7 @@ export default function DashboardClient() {
         </button>
       </div>
 
+      <PreviousStatus draft={draft} />
       {message ? <div className={ui.callout}>{message}</div> : null}
 
       {tab === "client" ? (
@@ -218,13 +340,60 @@ export default function DashboardClient() {
                   {draft.premiumOverride ? " · Premium override on" : ""}
                 </p>
               </div>
-              <span className={ui.badge}>{copy.price}</span>
+              <span className={ui.badge}>{quote.totalLabel}</span>
             </div>
             <div className={ui.body}>
               <p>{copy.tagline}</p>
               <p className={ui.hint} style={{ marginTop: "0.4rem" }}>
                 {copy.duration}
               </p>
+              <div style={{ marginTop: "1rem", display: "grid", gap: "0.45rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+                  <span>
+                    {copy.name} base{draft.premiumOverride ? " · Premium override" : ""}
+                  </span>
+                  <span>{quote.baseLabel}</span>
+                </div>
+                {quote.lines.map((line) => (
+                  <div key={line.id} style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+                    <span>{line.name}</span>
+                    <span>+ {formatAddonPrice(line.price)}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+                  <strong>Total</strong>
+                  <strong>{quote.totalLabel}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className={ui.card} style={{ marginBottom: "1rem" }}>
+            <div className={ui.header}>
+              <h3>Recommendation summary</h3>
+            </div>
+            <div className={ui.body}>
+              <p className={ui.hint}>The tier, score, and price above stay on the rule engine.</p>
+              <label className={ui.label} style={{ display: "block", marginTop: "0.85rem" }}>
+                AI-drafted, review before use.
+                <textarea
+                  className={ui.textarea}
+                  style={{ marginTop: "0.4rem" }}
+                  value={summaryDraft}
+                  onChange={(event) => setSummaryDraft(event.target.value)}
+                />
+              </label>
+              {summaryError ? (
+                <p className={ui.error} style={{ marginTop: "0.75rem" }}>
+                  {summaryError}
+                </p>
+              ) : null}
+            </div>
+            <div className={ui.footer}>
+              <span className={ui.hint}>Uses the saved assessment. Editing this box does not change the quote.</span>
+              <button type="button" className={ui.btnSecondary} disabled={summarizing} onClick={draftSummaryWithAi}>
+                {summarizing ? "Drafting…" : "Draft summary with AI"}
+              </button>
             </div>
           </div>
 
@@ -344,9 +513,11 @@ export default function DashboardClient() {
             </div>
             <div className={ui.body}>
               <p className={ui.hint} style={{ marginBottom: "0.9rem" }}>
-                Suggested items start checked. Turn any add-on on or off, or add one that is not on the list. Send For
-                Review saves this selection.
+                Suggested items start checked. Each selected add-on is added to the tier price. Premium replaces the tier
+                range and still adds these prices. Send For Review saves the same total.
               </p>
+              {catalogError ? <p className={ui.hint}>{catalogError}</p> : null}
+              {catalog === null ? <p className={ui.hint}>Loading add-ons…</p> : null}
               {orderedCatalog.map((addon) => {
                 const suggested = suggestedIds.has(addon.id);
                 return (
@@ -359,6 +530,7 @@ export default function DashboardClient() {
                     />
                     <span>
                       <strong>{addon.name}</strong>{" "}
+                      <span className={ui.badge}>{formatAddonPrice(addon.price)}</span>{" "}
                       {suggested ? <span className={ui.badge}>Suggested</span> : null}
                       <div className={ui.hint}>{addon.detail}</div>
                       {suggested ? <div className={ui.hint}>{addon.why}</div> : null}
@@ -375,7 +547,8 @@ export default function DashboardClient() {
                     style={{ marginTop: "0.2rem" }}
                   />
                   <span style={{ flex: 1 }}>
-                    <strong>{addon.name}</strong> <span className={ui.badge}>Custom</span>
+                    <strong>{addon.name}</strong> <span className={ui.badge}>{formatAddonPrice(addon.price)}</span>{" "}
+                    <span className={ui.badge}>Custom</span>
                     <div className={ui.hint}>Added for this client.</div>
                   </span>
                   <button type="button" className={ui.btnSecondary} onClick={() => removeCustomAddon(addon.id)}>
@@ -400,6 +573,21 @@ export default function DashboardClient() {
                       }
                     }}
                     placeholder="On-site kickoff workshop"
+                  />
+                  <input
+                    className={ui.input}
+                    value={customPrice}
+                    onChange={(event) => setCustomPrice(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addCustomAddon();
+                      }
+                    }}
+                    inputMode="numeric"
+                    placeholder="Price"
+                    aria-label="Custom add-on price"
+                    style={{ maxWidth: "8rem" }}
                   />
                   <button type="button" className={ui.btnSecondary} onClick={addCustomAddon}>
                     Add
@@ -441,7 +629,7 @@ export default function DashboardClient() {
             </div>
             <div className={ui.footer}>
               <span className={ui.hint}>Workflow ends here. No billing. No client send.</span>
-              <button type="button" className={ui.btnBrass} onClick={() => setModalOpen(true)}>
+              <button type="button" className={ui.btnBrass} disabled={catalog === null} onClick={() => setModalOpen(true)}>
                 Send For Review
               </button>
             </div>
@@ -481,6 +669,25 @@ export default function DashboardClient() {
             </div>
             <div className={ui.body}>
               <p>{summary}</p>
+              {aiDraft?.source === summary && aiDraft.text ? (
+                <>
+                  <p className={ui.hint} style={{ marginTop: "1rem" }}>
+                    OpenRouter draft. The score and tier still come from the rule engine.
+                  </p>
+                  <p>{aiDraft.text}</p>
+                </>
+              ) : null}
+              {aiError ? (
+                <p className={ui.hint} style={{ marginTop: "0.75rem" }}>
+                  {aiError}
+                </p>
+              ) : null}
+            </div>
+            <div className={ui.footer}>
+              <span className={ui.hint}>Uses the current assessment. This draft is not stored on the review record.</span>
+              <button type="button" className={ui.btnSecondary} disabled={drafting} onClick={draftWithOpenRouter}>
+                {drafting ? "Drafting…" : "Draft with OpenRouter"}
+              </button>
             </div>
           </div>
           <div className={ui.card}>
@@ -508,7 +715,7 @@ export default function DashboardClient() {
               <button type="button" className={ui.btnSecondary} onClick={() => router.push("/followup")}>
                 Re-edit follow-up
               </button>
-              <button type="button" className={ui.btnBrass} onClick={() => setModalOpen(true)}>
+              <button type="button" className={ui.btnBrass} disabled={catalog === null} onClick={() => setModalOpen(true)}>
                 Send For Review
               </button>
             </div>
@@ -539,6 +746,14 @@ export default function DashboardClient() {
               <p>
                 <strong>Roles:</strong> {draft.roles.length}
               </p>
+              <p>
+                <strong>Quoted total:</strong> {quote.totalLabel}
+              </p>
+              {quote.lines.map((line) => (
+                <p key={line.id}>
+                  {line.name}: + {formatAddonPrice(line.price)}
+                </p>
+              ))}
               <p>
                 <strong>Add-ons:</strong>{" "}
                 {selectedAddons.length ? selectedAddons.map((item) => item.name).join(", ") : "None selected"}

@@ -5,7 +5,7 @@ function clamp(value) {
 }
 
 export function departmentReadiness(department, draft) {
-  const experience = draft.aiExperience || "Some";
+  const experience = draft.departmentExperience?.[department] || "Some";
   const tools = draft.tools || [];
   const pain = (draft.painPoints || "").toLowerCase();
   const outcomes = (draft.desiredOutcomes || "").toLowerCase();

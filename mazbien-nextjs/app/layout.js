@@ -1,20 +1,22 @@
-import { Source_Sans_3, Source_Serif_4 } from "next/font/google";
+import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 
-const sans = Source_Sans_3({
+const sans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
 });
 
-const serif = Source_Serif_4({
+const serif = Fraunces({
   subsets: ["latin"],
   variable: "--font-serif",
+  display: "swap",
 });
 
 export const metadata = {
   title: "Mazbien — AI Training Needs Assessment",
   description:
-    "Internal consultant workspace for role-specific AI training recommendations. Drafts stay under consultant control until Send For Review.",
+    "Mazbien is an AI training needs assessment consultancy. Consultants sign in to prepare role-specific training recommendations.",
 };
 
 export default function RootLayout({ children }) {

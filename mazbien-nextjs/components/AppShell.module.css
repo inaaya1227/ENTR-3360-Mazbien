@@ -6,11 +6,11 @@
 
 .sidebar {
   background: linear-gradient(180deg, var(--navy) 0%, var(--ink) 100%);
-  color: #f4efe6;
+  color: var(--sidebar-text);
   padding: 1.5rem 1.15rem 1.25rem;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(196, 163, 90, 0.28);
+  border-right: 1px solid var(--sidebar-line);
 }
 
 .brand {
@@ -18,28 +18,26 @@
   gap: 0.75rem;
   align-items: flex-start;
   padding-bottom: 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid var(--sidebar-line);
 }
 
-.mark {
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--brass);
-  color: var(--brass);
-  display: grid;
-  place-items: center;
-  font-family: var(--font-serif), Georgia, serif;
-  font-weight: 700;
+.logo {
+  width: 44px;
+  height: auto;
+  display: block;
+  flex-shrink: 0;
+  border-radius: 6px;
 }
 
 .brand h1 {
   font-size: 1.35rem;
   letter-spacing: 0.02em;
+  color: var(--sidebar-text);
 }
 
 .brand p {
   font-size: 0.72rem;
-  color: rgba(244, 239, 230, 0.68);
+  color: var(--sidebar-muted);
   margin-top: 0.15rem;
 }
 
@@ -58,42 +56,42 @@
   padding: 0.65rem 0.7rem;
   border: 1px solid transparent;
   font-size: 0.88rem;
-  color: rgba(244, 239, 230, 0.82);
+  color: var(--sidebar-muted);
 }
 
 .link:hover,
 .active {
-  border-color: rgba(196, 163, 90, 0.45);
-  background: rgba(196, 163, 90, 0.1);
-  color: #fff;
+  border-color: color-mix(in srgb, var(--accent) 70%, white);
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  color: var(--sidebar-text);
 }
 
 .consultant {
   margin-top: auto;
   padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 1px solid var(--sidebar-line);
   font-size: 0.78rem;
-  color: rgba(244, 239, 230, 0.75);
+  color: var(--sidebar-muted);
 }
 
 .consultant strong {
   display: block;
-  color: #fff;
+  color: var(--sidebar-text);
   margin-bottom: 0.15rem;
   word-break: break-word;
 }
 
 .signOut {
   margin-top: 0.75rem;
-  border: 1px solid rgba(196, 163, 90, 0.7);
+  border: 1px solid color-mix(in srgb, var(--brass) 85%, white);
   background: transparent;
-  color: #f4efe6;
+  color: var(--sidebar-text);
   padding: 0.4rem 0.7rem;
   font-size: 0.78rem;
 }
 
 .signOut:hover {
-  background: rgba(196, 163, 90, 0.16);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .main {
@@ -116,7 +114,7 @@
 
   .sidebar {
     border-right: 0;
-    border-bottom: 1px solid rgba(196, 163, 90, 0.28);
+    border-bottom: 1px solid var(--sidebar-line);
   }
 
   .nav {
