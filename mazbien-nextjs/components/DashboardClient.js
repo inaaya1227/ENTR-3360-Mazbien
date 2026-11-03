@@ -15,6 +15,7 @@ import {
 import { fetchAddonCatalog, saveAssessmentForReview } from "@/lib/assessments";
 import { intakeIsComplete } from "@/lib/draftStore";
 import { useDraft } from "@/lib/draftContext";
+import { getSupabaseClient } from "@/lib/supabaseClient";
 import { buildChecklist, buildPathways, buildProposalSummary } from "@/lib/pathways";
 import { allDepartmentReadiness } from "@/lib/readiness";
 import { resolveDisplayTier, scoreAssessment } from "@/lib/scoring";
@@ -35,6 +36,12 @@ export default function DashboardClient() {
   const [customError, setCustomError] = useState("");
   const [catalog, setCatalog] = useState(null);
   const [catalogError, setCatalogError] = useState("");
+  const [aiDraft, setAiDraft] = useState(null);
+  const [aiError, setAiError] = useState("");
+  const [drafting, setDrafting] = useState(false);
+  const [summaryDraft, setSummaryDraft] = useState("");
+  const [summaryError, setSummaryError] = useState("");
+  const [summarizing, setSummarizing] = useState(false);
 
   const scoring = useMemo(
     () =>
@@ -133,6 +140,96 @@ export default function DashboardClient() {
     });
   }
 
+  async function draftWithOpenRouter() {
+    setDrafting(true);
+    setAiError("");
+    const supabase = getSupabaseClient();
+    const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+    if (!session?.access_token) {
+      setDrafting(false);
+      setAiError("Sign in again before drafting a proposal.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/proposal", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          companyName: draft.companyName,
+          industry: draft.industry,
+          size: draft.size,
+          departments: draft.departments,
+          departmentExperience: draft.departmentExperience,
+          roles: (draft.roles || []).map((role) => ({ name: role.name, department: role.department })),
+          painPoints: draft.painPoints,
+          desiredOutcomes: draft.desiredOutcomes,
+          followupAnswers: (draft.followupAnswers || []).map((item) => ({
+            question: item.question,
+            answer: item.answer,
+          })),
+          tier: copy.name,
+          score: scoring.total,
+          quote: quote.totalLabel,
+          pathways: pathways.map((item) => ({
+            name: item.name,
+            department: item.department,
+            priority: item.priority,
+            modules: item.modules,
+          })),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAiError(data.error || "OpenRouter could not draft the proposal.");
+        return;
+      }
+      setAiDraft({ source: summary, text: data.summary || "" });
+    } catch {
+      setAiError("OpenRouter could not be reached.");
+    } finally {
+      setDrafting(false);
+    }
+  }
+
+  async function draftSummaryWithAi() {
+    setSummarizing(true);
+    setSummaryError("");
+    try {
+      if (!draft.assessmentId) {
+        setSummaryError("Send For Review first. The summary is drafted from the saved assessment.");
+        return;
+      }
+      const supabase = getSupabaseClient();
+      const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+      if (!session?.access_token) {
+        setSummaryError("Sign in again before drafting a summary.");
+        return;
+      }
+      const response = await fetch("/api/summary", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ assessmentId: draft.assessmentId }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setSummaryError(data.error || "OpenRouter could not draft the summary.");
+        return;
+      }
+      setSummaryDraft(data.summary || "");
+    } catch {
+      setSummaryError("OpenRouter could not be reached.");
+    } finally {
+      setSummarizing(false);
+    }
+  }
+
   async function confirmSend() {
     setSaving(true);
     setMessage("");
@@ -222,6 +319,35 @@ export default function DashboardClient() {
                   <strong>{quote.totalLabel}</strong>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className={ui.card} style={{ marginBottom: "1rem" }}>
+            <div className={ui.header}>
+              <h3>Recommendation summary</h3>
+            </div>
+            <div className={ui.body}>
+              <p className={ui.hint}>The tier, score, and price above stay on the rule engine.</p>
+              <label className={ui.label} style={{ display: "block", marginTop: "0.85rem" }}>
+                AI-drafted, review before use.
+                <textarea
+                  className={ui.textarea}
+                  style={{ marginTop: "0.4rem" }}
+                  value={summaryDraft}
+                  onChange={(event) => setSummaryDraft(event.target.value)}
+                />
+              </label>
+              {summaryError ? (
+                <p className={ui.error} style={{ marginTop: "0.75rem" }}>
+                  {summaryError}
+                </p>
+              ) : null}
+            </div>
+            <div className={ui.footer}>
+              <span className={ui.hint}>Uses the saved assessment. Editing this box does not change the quote.</span>
+              <button type="button" className={ui.btnSecondary} disabled={summarizing} onClick={draftSummaryWithAi}>
+                {summarizing ? "Drafting…" : "Draft summary with AI"}
+              </button>
             </div>
           </div>
 
@@ -471,6 +597,25 @@ export default function DashboardClient() {
             </div>
             <div className={ui.body}>
               <p>{summary}</p>
+              {aiDraft?.source === summary && aiDraft.text ? (
+                <>
+                  <p className={ui.hint} style={{ marginTop: "1rem" }}>
+                    OpenRouter draft. The score and tier still come from the rule engine.
+                  </p>
+                  <p>{aiDraft.text}</p>
+                </>
+              ) : null}
+              {aiError ? (
+                <p className={ui.hint} style={{ marginTop: "0.75rem" }}>
+                  {aiError}
+                </p>
+              ) : null}
+            </div>
+            <div className={ui.footer}>
+              <span className={ui.hint}>Uses the current assessment. This draft is not stored on the review record.</span>
+              <button type="button" className={ui.btnSecondary} disabled={drafting} onClick={draftWithOpenRouter}>
+                {drafting ? "Drafting…" : "Draft with OpenRouter"}
+              </button>
             </div>
           </div>
           <div className={ui.card}>
