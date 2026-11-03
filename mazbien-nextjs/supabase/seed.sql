@@ -231,19 +231,19 @@ begin
 
     addon_names := array[]::text[];
     if experience = 'None' then
-      addon_names := addon_names || 'Change-management office hours';
+      addon_names := array_append(addon_names, 'Change-management office hours'::text);
     end if;
     if dept_count >= 3 or tier = 'gold' then
-      addon_names := addon_names || 'Department champion network';
+      addon_names := array_append(addon_names, 'Department champion network'::text);
     end if;
     if size_band in ('501-2000', '2000+') then
-      addon_names := addon_names || 'Train-the-trainer cascade';
+      addon_names := array_append(addon_names, 'Train-the-trainer cascade'::text);
     end if;
     if 'Engineering' = any(dept_list) or 'Legal & Compliance' = any(dept_list) then
-      addon_names := addon_names || 'AI governance & allowed-use lab';
+      addon_names := array_append(addon_names, 'AI governance & allowed-use lab'::text);
     end if;
     if 'Customer Service' = any(dept_list) then
-      addon_names := addon_names || 'Deflection measurement pack';
+      addon_names := array_append(addon_names, 'Deflection measurement pack'::text);
     end if;
     if cardinality(addon_names) = 0 then
       addon_names := array['90-day executive impact brief'];
@@ -428,33 +428,33 @@ begin
     )
     select 1
     from scored
-    where score is distinct from expected
-      or tier is distinct from case
+    where scored.score is distinct from expected
+      or scored.tier is distinct from case
         when expected >= 72 then 'gold'
         when expected >= 42 then 'silver'
         else 'bronze'
       end
-      or quote_total is distinct from format(
+      or scored.quote_total is distinct from format(
         '$%s – $%s',
         trim(to_char(
-          case tier when 'bronze' then 12000 when 'silver' then 28000 else 54000 end
+          case scored.tier when 'bronze' then 12000 when 'silver' then 28000 else 54000 end
           + coalesce((select sum(aa.price_at_selection) from public.assessment_addons aa where aa.assessment_id = scored.id), 0),
           'FM999,999,999'
         )),
         trim(to_char(
-          case tier when 'bronze' then 18000 when 'silver' then 42000 else 78000 end
+          case scored.tier when 'bronze' then 18000 when 'silver' then 42000 else 78000 end
           + coalesce((select sum(aa.price_at_selection) from public.assessment_addons aa where aa.assessment_id = scored.id), 0),
           'FM999,999,999'
         ))
       )
-      or desired_outcomes is null
-      or department_ai_experience = '{}'::jsonb
-      or selected_addons is distinct from '[]'::jsonb
+      or scored.desired_outcomes is null
+      or scored.department_ai_experience = '{}'::jsonb
+      or scored.selected_addons is distinct from '[]'::jsonb
   ) then
     raise exception 'Stored score, tier, or quote does not match the seed rule.';
   end if;
 
-  if (select count(*) from public.assessment_addons where assessment_id = any(inserted)) <> addon_expected then
+  if (select count(*) from public.assessment_addons where public.assessment_addons.assessment_id = any(inserted)) <> addon_expected then
     raise exception 'Expected % assessment add-on rows.', addon_expected;
   end if;
 
