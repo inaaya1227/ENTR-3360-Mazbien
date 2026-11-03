@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { TIER_COPY } from "@/lib/catalog";
 import { ADDON_CATALOG, buildSelectedAddons, isCatalogAddonSelected, isCustomAddonSelected, suggestAddons } from "@/lib/addons";
 import { saveAssessmentForReview } from "@/lib/assessments";
-import { getSupabaseClient } from "@/lib/supabaseClient";
 import { intakeIsComplete } from "@/lib/draftStore";
 import { useDraft } from "@/lib/draftContext";
 import { getSupabaseClient } from "@/lib/supabaseClient";
