@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TIER_COPY } from "@/lib/catalog";
 import { ADDON_CATALOG, buildSelectedAddons, isCatalogAddonSelected, isCustomAddonSelected, suggestAddons } from "@/lib/addons";
 import { saveAssessmentForReview } from "@/lib/assessments";
+import { getSupabaseClient } from "@/lib/supabaseClient";
 import { intakeIsComplete } from "@/lib/draftStore";
 import { useDraft } from "@/lib/draftContext";
 import { buildChecklist, buildPathways, buildProposalSummary } from "@/lib/pathways";
@@ -23,6 +24,9 @@ export default function DashboardClient() {
   const [message, setMessage] = useState("");
   const [customName, setCustomName] = useState("");
   const [customError, setCustomError] = useState("");
+  const [depositing, setDepositing] = useState(false);
+  const [depositError, setDepositError] = useState("");
+  const [payment, setPayment] = useState(null);
 
   const scoring = useMemo(
     () =>
@@ -54,6 +58,28 @@ export default function DashboardClient() {
     () => buildProposalSummary(draft, scoring, displayTier, copy),
     [draft, scoring, displayTier, copy],
   );
+
+  useEffect(() => {
+    if (!draft.assessmentId) {
+      setPayment(null);
+      return;
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    let cancelled = false;
+    supabase
+      .from("payments")
+      .select("status, paid_at, amount_cents, currency")
+      .eq("assessment_id", draft.assessmentId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        if (!cancelled) setPayment(data?.[0] || null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [draft.assessmentId]);
 
   function persist(next) {
     setDraft(next);
@@ -104,7 +130,11 @@ export default function DashboardClient() {
       setMessage(result.error);
       return;
     }
-    persist({ ...draft, status: "sent_for_review" });
+    persist({
+      ...draft,
+      status: "sent_for_review",
+      assessmentId: result.id || draft.assessmentId,
+    });
     setModalOpen(false);
     setMessage(
       result.warning
@@ -112,6 +142,37 @@ export default function DashboardClient() {
         : "Marked sent for review. Nothing was billed or sent to the client.",
     );
     router.push("/history");
+  }
+
+  async function collectDeposit() {
+    setDepositing(true);
+    setDepositError("");
+    try {
+      const supabase = getSupabaseClient();
+      const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+      if (!session?.access_token) {
+        setDepositError("Sign in again before collecting a deposit.");
+        return;
+      }
+      const response = await fetch("/api/payments/checkout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ assessmentId: draft.assessmentId }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.url) {
+        setDepositError(data.error || "Stripe could not start the deposit.");
+        return;
+      }
+      window.location.assign(data.url);
+    } catch {
+      setDepositError("Stripe could not be reached.");
+    } finally {
+      setDepositing(false);
+    }
   }
 
   if (!ready) {
@@ -166,6 +227,32 @@ export default function DashboardClient() {
               </p>
             </div>
           </div>
+
+          {draft.status === "sent_for_review" && draft.assessmentId ? (
+            <div className={ui.card} style={{ marginBottom: "1rem" }}>
+              <div className={ui.header}>
+                <h3>Deposit</h3>
+              </div>
+              <div className={ui.body}>
+                <p className={ui.hint}>
+                  Deposit status: {payment?.status || "none"}. The tier, score, and quote stay on the rule engine.
+                </p>
+                {depositError ? (
+                  <p className={ui.error} style={{ marginTop: "0.75rem" }}>
+                    {depositError}
+                  </p>
+                ) : null}
+              </div>
+              {payment?.status === "paid" ? null : (
+                <div className={ui.footer}>
+                  <span className={ui.hint}>Stripe test mode. Nothing is billed in live mode.</span>
+                  <button type="button" className={ui.btnSecondary} disabled={depositing} onClick={collectDeposit}>
+                    {depositing ? "Opening Stripe…" : "Collect deposit (test mode)"}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : null}
 
           <div className={ui.grid2} style={{ marginBottom: "1rem" }}>
             <div className={ui.card}>

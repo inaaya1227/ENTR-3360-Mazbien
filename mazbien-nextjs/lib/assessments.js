@@ -109,7 +109,25 @@ export async function fetchAssessmentHistory() {
     return { rows: [], source: "supabase", warning: error.message };
   }
 
-  return { rows: data || [], source: "supabase" };
+  const ids = (data || []).map((row) => row.id);
+  const latestDeposit = new Map();
+  if (ids.length) {
+    const paymentResult = await supabase
+      .from("payments")
+      .select("assessment_id, status, created_at")
+      .in("assessment_id", ids)
+      .order("created_at", { ascending: false });
+    if (!paymentResult.error) {
+      for (const payment of paymentResult.data || []) {
+        if (!latestDeposit.has(payment.assessment_id)) latestDeposit.set(payment.assessment_id, payment.status);
+      }
+    }
+  }
+
+  return {
+    rows: (data || []).map((row) => ({ ...row, deposit_status: latestDeposit.get(row.id) || null })),
+    source: "supabase",
+  };
 }
 
 export function tierLabel(tier) {
