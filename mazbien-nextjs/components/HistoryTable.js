@@ -59,6 +59,7 @@ export default function HistoryTable() {
               <th>Industry</th>
               <th>Tier</th>
               <th>Status</th>
+              <th>Deposit</th>
               <th>Previous status</th>
               <th>Created</th>
               <th></th>
@@ -67,11 +68,11 @@ export default function HistoryTable() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7}>Loading history…</td>
+                <td colSpan={8}>Loading history…</td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={7}>No assessments yet. Send For Review from the dashboard to store one.</td>
+                <td colSpan={8}>No assessments yet. Send For Review from the dashboard to store one.</td>
               </tr>
             ) : (
               rows.map((row) => (
@@ -80,6 +81,7 @@ export default function HistoryTable() {
                   <td>{row.industry}</td>
                   <td>{tierLabel(row.tier)}</td>
                   <td>{statusLabel(row.status)}</td>
+                  <td>{row.deposit_status || "—"}</td>
                   <td>{statusLabel(row.previous_status)}</td>
                   <td>{row.created_at ? new Date(row.created_at).toLocaleDateString() : "—"}</td>
                   <td>
