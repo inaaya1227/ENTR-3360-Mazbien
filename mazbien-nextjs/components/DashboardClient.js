@@ -3,8 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TIER_COPY } from "@/lib/catalog";
-import { ADDON_CATALOG, buildSelectedAddons, isCatalogAddonSelected, isCustomAddonSelected, suggestAddons } from "@/lib/addons";
-import { saveAssessmentForReview } from "@/lib/assessments";
+import {
+  buildQuote,
+  buildSelectedAddons,
+  formatAddonPrice,
+  isCatalogAddonSelected,
+  isCustomAddonSelected,
+  suggestedIdsFor,
+  withCatalogPrices,
+} from "@/lib/addons";
+import { fetchAddonCatalog, saveAssessmentForReview } from "@/lib/assessments";
 import { intakeIsComplete } from "@/lib/draftStore";
 import { useDraft } from "@/lib/draftContext";
 import { getSupabaseClient } from "@/lib/supabaseClient";
@@ -34,6 +42,9 @@ export default function DashboardClient() {
   const [summaryDraft, setSummaryDraft] = useState("");
   const [summaryError, setSummaryError] = useState("");
   const [summarizing, setSummarizing] = useState(false);
+  const [depositing, setDepositing] = useState(false);
+  const [depositError, setDepositError] = useState("");
+  const [payment, setPayment] = useState(null);
 
   const scoring = useMemo(
     () =>
@@ -627,7 +638,10 @@ export default function DashboardClient() {
               </div>
             </div>
             <div className={ui.footer}>
-              <span className={ui.hint}>Workflow ends here. No billing. No client send.</span>
+              <span className={ui.hint}>
+                Send For Review saves this assessment. A test-mode deposit can be collected after that. Nothing is
+                emailed to the client.
+              </span>
               <button type="button" className={ui.btnBrass} disabled={catalog === null} onClick={() => setModalOpen(true)}>
                 Send For Review
               </button>
