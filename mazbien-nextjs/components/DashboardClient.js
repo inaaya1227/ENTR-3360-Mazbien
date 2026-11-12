@@ -20,6 +20,7 @@ import { buildChecklist, buildPathways, buildProposalSummary } from "@/lib/pathw
 import { allDepartmentReadiness } from "@/lib/readiness";
 import { resolveDisplayTier, scoreAssessment } from "@/lib/scoring";
 import PreviousStatus from "./PreviousStatus";
+import ScheduleSessions from "./ScheduleSessions";
 import ReadinessRadar from "./ReadinessRadar";
 import ui from "./ui.module.css";
 
@@ -431,6 +432,13 @@ export default function DashboardClient() {
                 </div>
               )}
             </div>
+          ) : null}
+
+          {draft.status === "sent_for_review" && draft.assessmentId ? (
+            <ScheduleSessions
+              assessmentId={draft.assessmentId}
+              modules={[...new Set(pathways.flatMap((pathway) => pathway.modules))]}
+            />
           ) : null}
 
           <div className={ui.grid2} style={{ marginBottom: "1rem" }}>
