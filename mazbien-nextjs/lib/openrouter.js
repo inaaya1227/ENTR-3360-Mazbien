@@ -37,8 +37,9 @@ function failure(message, status) {
   return error;
 }
 
-async function requestCompletion({ apiKey, model, messages, maxTokens, disableReasoning }) {
+async function requestCompletion({ apiKey, model, messages, maxTokens, disableReasoning, temperature }) {
   const body = { model, messages, max_tokens: maxTokens };
+  if (typeof temperature === "number") body.temperature = temperature;
   if (disableReasoning) body.reasoning = { effort: "none" };
 
   const response = await fetch(OPENROUTER_URL, {
@@ -79,7 +80,14 @@ export async function completeChat(messages, options = {}) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 400));
     const maxTokens = attempt === 0 ? requestedTokens : Math.max(requestedTokens, 1600);
-    last = await requestCompletion({ apiKey, model, messages, maxTokens, disableReasoning });
+    last = await requestCompletion({
+      apiKey,
+      model,
+      messages,
+      maxTokens,
+      disableReasoning,
+      temperature: options.temperature,
+    });
 
     if (last.response.ok && last.text) return last.text;
 

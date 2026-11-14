@@ -284,6 +284,10 @@ export function draftFromAssessment(row, catalog = []) {
     previousStatus: row.status || "",
     assessmentId: row.id,
     intakeStep: 1,
+    aiSummary: row.ai_summary && typeof row.ai_summary === "object" ? row.ai_summary : null,
+    aiSummaryStatus: row.ai_summary_status || "",
+    aiSummaryModel: row.ai_summary_model || "",
+    aiSummaryUpdatedAt: row.ai_summary_updated_at || "",
   };
   next.followupAnswers = restoreFollowupAnswers(next, row.followup_answers || []);
   return next;

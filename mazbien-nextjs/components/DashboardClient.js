@@ -12,6 +12,7 @@ import {
   suggestedIdsFor,
   withCatalogPrices,
 } from "@/lib/addons";
+import { formFromSummary, SUMMARY_UNAVAILABLE } from "@/lib/aiSummary";
 import { fetchAddonCatalog, saveAssessmentForReview } from "@/lib/assessments";
 import { intakeIsComplete } from "@/lib/draftStore";
 import { useDraft } from "@/lib/draftContext";
@@ -40,9 +41,11 @@ export default function DashboardClient() {
   const [aiDraft, setAiDraft] = useState(null);
   const [aiError, setAiError] = useState("");
   const [drafting, setDrafting] = useState(false);
-  const [summaryDraft, setSummaryDraft] = useState("");
-  const [summaryError, setSummaryError] = useState("");
+  const [summaryForm, setSummaryForm] = useState({ overview: "", roles: [], ai_generated: false });
+  const [summaryStatus, setSummaryStatus] = useState("");
+  const [summaryMessage, setSummaryMessage] = useState("");
   const [summarizing, setSummarizing] = useState(false);
+  const [summarySaving, setSummarySaving] = useState(false);
   const [depositing, setDepositing] = useState(false);
   const [depositError, setDepositError] = useState("");
   const [payment, setPayment] = useState(null);
@@ -119,6 +122,13 @@ export default function DashboardClient() {
       cancelled = true;
     };
   }, [draft.assessmentId]);
+
+  const savedSummaryKey = JSON.stringify(draft.aiSummary || null);
+  const roleNameKey = (draft.roles || []).map((role) => role.name).join("|");
+  useEffect(() => {
+    setSummaryForm(formFromSummary(draft.aiSummary, (draft.roles || []).map((role) => role.name)));
+    setSummaryStatus(draft.aiSummaryStatus || "");
+  }, [draft.assessmentId, draft.aiSummary, draft.aiSummaryStatus, savedSummaryKey, roleNameKey]);
 
   function persist(next) {
     setDraft(next);
@@ -221,38 +231,82 @@ export default function DashboardClient() {
     }
   }
 
-  async function draftSummaryWithAi() {
-    setSummarizing(true);
-    setSummaryError("");
+  function showSummaryResult(data, ok) {
+    const safeErrors = new Set([
+      "Sign in before drafting a summary.",
+      "Sign in again before drafting a summary.",
+      "Send the assessment id as JSON.",
+      "Send a saved assessment id.",
+      "That assessment is not available for this consultant.",
+      "Send the summary as overview and roles.",
+      "The summary could not be saved.",
+    ]);
+    if (data?.summary) setSummaryForm(formFromSummary(data.summary, (draft.roles || []).map((role) => role.name)));
+    if (ok && data?.status) {
+      setSummaryStatus(data.status);
+      persist({
+        ...draft,
+        aiSummary: data.summary,
+        aiSummaryStatus: data.status,
+        aiSummaryModel: data.model || "",
+        aiSummaryUpdatedAt: data.updatedAt || "",
+      });
+    }
+    const detail = data?.message || data?.error || "";
+    const notes = [];
+    if (data?.fallback) notes.push(SUMMARY_UNAVAILABLE);
+    if (detail && detail !== SUMMARY_UNAVAILABLE && safeErrors.has(detail)) notes.push(detail);
+    if (!ok && notes.length === 0) notes.push(SUMMARY_UNAVAILABLE);
+    setSummaryMessage(notes.join(" "));
+  }
+
+  async function postSummary(body) {
+    const supabase = getSupabaseClient();
+    const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+    if (!session?.access_token) return { ok: false, data: { error: "Sign in again before drafting a summary." } };
     try {
-      if (!draft.assessmentId) {
-        setSummaryError("Send For Review first. The summary is drafted from the saved assessment.");
-        return;
-      }
-      const supabase = getSupabaseClient();
-      const session = supabase ? (await supabase.auth.getSession()).data.session : null;
-      if (!session?.access_token) {
-        setSummaryError("Sign in again before drafting a summary.");
-        return;
-      }
       const response = await fetch("/api/summary", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ assessmentId: draft.assessmentId }),
+        body: JSON.stringify(body),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setSummaryError(data.error || "OpenRouter could not draft the summary.");
+      return { ok: response.ok, data };
+    } catch {
+      return { ok: false, data: { fallback: true, message: SUMMARY_UNAVAILABLE } };
+    }
+  }
+
+  async function draftSummaryWithAi() {
+    setSummarizing(true);
+    setSummaryMessage("");
+    try {
+      if (!draft.assessmentId) {
+        setSummaryMessage("Send For Review first. The summary is drafted from the saved assessment.");
         return;
       }
-      setSummaryDraft(data.summary || "");
-    } catch {
-      setSummaryError("OpenRouter could not be reached.");
+      const result = await postSummary({ assessmentId: draft.assessmentId });
+      showSummaryResult(result.data, result.ok);
     } finally {
       setSummarizing(false);
+    }
+  }
+
+  async function saveSummary(action) {
+    setSummarySaving(true);
+    setSummaryMessage("");
+    try {
+      if (!draft.assessmentId) {
+        setSummaryMessage("Send For Review first. The summary is drafted from the saved assessment.");
+        return;
+      }
+      const result = await postSummary({ assessmentId: draft.assessmentId, action, summary: summaryForm });
+      showSummaryResult(result.data, result.ok);
+    } finally {
+      setSummarySaving(false);
     }
   }
 
@@ -382,28 +436,57 @@ export default function DashboardClient() {
           <div className={ui.card} style={{ marginBottom: "1rem" }}>
             <div className={ui.header}>
               <h3>Recommendation summary</h3>
+              {summaryStatus === "draft" || summaryStatus === "approved" ? (
+                <span className={ui.badge}>{summaryStatus === "approved" ? "Approved" : "Draft"}</span>
+              ) : null}
             </div>
             <div className={ui.body}>
-              <p className={ui.hint}>The tier, score, and price above stay on the rule engine.</p>
+              <p className={ui.hint}>The tier, score, and price above stay on the rule engine. Edits here do not change them.</p>
               <label className={ui.label} style={{ display: "block", marginTop: "0.85rem" }}>
-                AI-drafted, review before use.
+                Overview
                 <textarea
                   className={ui.textarea}
                   style={{ marginTop: "0.4rem" }}
-                  value={summaryDraft}
-                  onChange={(event) => setSummaryDraft(event.target.value)}
+                  value={summaryForm.overview}
+                  onChange={(event) =>
+                    setSummaryForm((current) => ({ ...current, overview: event.target.value, ai_generated: false }))
+                  }
                 />
               </label>
-              {summaryError ? (
+              {summaryForm.roles.map((item, index) => (
+                <label key={`${item.role}-${index}`} className={ui.label} style={{ display: "block", marginTop: "0.75rem" }}>
+                  {item.role || "Role"}
+                  <textarea
+                    className={ui.textarea}
+                    style={{ marginTop: "0.4rem" }}
+                    value={item.why}
+                    onChange={(event) => {
+                      const why = event.target.value;
+                      setSummaryForm((current) => ({
+                        ...current,
+                        ai_generated: false,
+                        roles: current.roles.map((role, roleIndex) => (roleIndex === index ? { ...role, why } : role)),
+                      }));
+                    }}
+                  />
+                </label>
+              ))}
+              {summaryMessage ? (
                 <p className={ui.error} style={{ marginTop: "0.75rem" }}>
-                  {summaryError}
+                  {summaryMessage}
                 </p>
               ) : null}
             </div>
             <div className={ui.footer}>
-              <span className={ui.hint}>Uses the saved assessment. Editing this box does not change the quote.</span>
-              <button type="button" className={ui.btnSecondary} disabled={summarizing} onClick={draftSummaryWithAi}>
+              <span className={ui.hint}>Uses the saved assessment. Approve keeps this text and marks it approved.</span>
+              <button type="button" className={ui.btnSecondary} disabled={summarizing || summarySaving} onClick={draftSummaryWithAi}>
                 {summarizing ? "Drafting…" : "Draft summary with AI"}
+              </button>
+              <button type="button" className={ui.btnSecondary} disabled={summarizing || summarySaving} onClick={() => saveSummary("save")}>
+                {summarySaving ? "Saving…" : "Save draft"}
+              </button>
+              <button type="button" className={ui.btn} disabled={summarizing || summarySaving} onClick={() => saveSummary("approve")}>
+                Approve
               </button>
             </div>
           </div>
